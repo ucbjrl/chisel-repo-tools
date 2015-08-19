@@ -1,0 +1,18 @@
+Remove unused ModularCPP backend.
+Cosmetic (scalastyle) fixes.
+Parameterization fixes.
+Added "in" operator that can be used when defining constraints.
+Fix verilog harness and add parametrization in custom transforms.
+#286 Don't lose bits when combining literals.
+#290 Reg issue when custom clock + bundle - generation of bad Verilog.
+Fix naming problems when adding modules in custom transforms.
+#153 NameIt is way too eager, needs to chill out
+#94 printf being discarded during elaboration
+#292 Vcd varName,stripComponent code emits invalid variable IDs?
+#295 Bundle.calcElements calculates too many
+#298 Add support for printf with new tester.
+#300 Generated cpp files lack Config substring.
+#196 README Instructions don't let to a working HelloWorld
+Poking negative numbers.
+NoSuchElementException in --partitionIsland 
+#315 Shadow registers incorrectly dropped in --allocateOnlyNeededShadowRegisters

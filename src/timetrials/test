@@ -1,0 +1,722 @@
+make: Nothing to be done for `all'.
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-add.hex none
+
+real  0m0.094s
+user  0m0.068s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-addi.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-auipc.hex none
+
+real  0m0.088s
+user  0m0.063s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-fence_i.hex none
+
+real  0m0.091s
+user  0m0.065s
+sys 0m0.007s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sb.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sd.hex none
+
+real  0m0.497s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sh.hex none
+
+real  0m0.290s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sw.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-addiw.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-addw.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-and.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-andi.hex none
+
+real  0m0.089s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-beq.hex none
+
+real  0m0.089s
+user  0m0.063s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bge.hex none
+
+real  0m0.092s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bgeu.hex none
+
+real  0m0.093s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-blt.hex none
+
+real  0m0.087s
+user  0m0.061s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bltu.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bne.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-div.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-divu.hex none
+
+real  0m0.291s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-divuw.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-divw.hex none
+
+real  0m0.092s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-j.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-jal.hex none
+
+real  0m0.090s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-jalr.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lb.hex none
+
+real  0m0.294s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lbu.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-ld.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lh.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lhu.hex none
+
+real  0m0.095s
+user  0m0.066s
+sys 0m0.007s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lui.hex none
+
+real  0m0.170s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lw.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lwu.hex none
+
+real  0m0.091s
+user  0m0.067s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mul.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulh.hex none
+
+real  0m0.089s
+user  0m0.063s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulhsu.hex none
+
+real  0m0.088s
+user  0m0.065s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulhu.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulw.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-or.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-ori.hex none
+
+real  0m0.292s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-rem.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-remu.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-remuw.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-remw.hex none
+
+real  0m0.089s
+user  0m0.066s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-simple.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sll.hex none
+
+real  0m0.087s
+user  0m0.063s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slli.hex none
+
+real  0m0.092s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slliw.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sllw.hex none
+
+real  0m0.296s
+user  0m0.068s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slt.hex none
+
+real  0m0.085s
+user  0m0.063s
+sys 0m0.004s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slti.hex none
+
+real  0m0.293s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sltiu.hex none
+
+real  0m0.082s
+user  0m0.060s
+sys 0m0.004s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sltu.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sra.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-srai.hex none
+
+real  0m0.293s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sraiw.hex none
+
+real  0m0.086s
+user  0m0.062s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sraw.hex none
+
+real  0m0.093s
+user  0m0.068s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-srliw.hex none
+
+real  0m0.092s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-srlw.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sub.hex none
+
+real  0m0.092s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-subw.hex none
+
+real  0m0.291s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-xor.hex none
+
+real  0m0.084s
+user  0m0.061s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-xori.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64si-p-coreid.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64si-p-csr.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64si-pm-ipi.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/dhrystone.riscv.hex none
+
+real  0m0.120s
+user  0m0.071s
+sys 0m0.009s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/median.riscv.hex none
+
+real  0m0.131s
+user  0m0.075s
+sys 0m0.010s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/multiply.riscv.hex none
+
+real  0m0.325s
+user  0m0.073s
+sys 0m0.009s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/qsort.riscv.hex none
+
+real  0m0.120s
+user  0m0.071s
+sys 0m0.009s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/towers.riscv.hex none
+
+real  0m0.528s
+user  0m0.071s
+sys 0m0.009s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/vvadd.riscv.hex none
+
+real  0m0.331s
+user  0m0.077s
+sys 0m0.010s
+make: Nothing to be done for `all'.
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-add.hex none
+
+real  0m0.096s
+user  0m0.069s
+sys 0m0.007s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-addi.hex none
+
+real  0m0.091s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-auipc.hex none
+
+real  0m0.093s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-fence_i.hex none
+
+real  0m0.092s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sb.hex none
+
+real  0m0.087s
+user  0m0.062s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sd.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sh.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sw.hex none
+
+real  0m0.099s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-addiw.hex none
+
+real  0m0.092s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-addw.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-and.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-andi.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-beq.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bge.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bgeu.hex none
+
+real  0m0.088s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-blt.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bltu.hex none
+
+real  0m0.092s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-bne.hex none
+
+real  0m0.092s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-div.hex none
+
+real  0m0.091s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-divu.hex none
+
+real  0m0.089s
+user  0m0.063s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-divuw.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-divw.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-j.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-jal.hex none
+
+real  0m0.300s
+user  0m0.068s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-jalr.hex none
+
+real  0m0.090s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lb.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lbu.hex none
+
+real  0m0.090s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-ld.hex none
+
+real  0m0.292s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lh.hex none
+
+real  0m0.090s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lhu.hex none
+
+real  0m0.090s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lui.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lw.hex none
+
+real  0m0.093s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-lwu.hex none
+
+real  0m0.093s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mul.hex none
+
+real  0m0.091s
+user  0m0.063s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulh.hex none
+
+real  0m0.095s
+user  0m0.068s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulhsu.hex none
+
+real  0m0.294s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulhu.hex none
+
+real  0m0.294s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-mulw.hex none
+
+real  0m0.091s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-or.hex none
+
+real  0m0.088s
+user  0m0.063s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-ori.hex none
+
+real  0m0.088s
+user  0m0.063s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-rem.hex none
+
+real  0m0.095s
+user  0m0.068s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-remu.hex none
+
+real  0m0.091s
+user  0m0.062s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-remuw.hex none
+
+real  0m0.094s
+user  0m0.068s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-remw.hex none
+
+real  0m0.091s
+user  0m0.063s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-simple.hex none
+
+real  0m0.091s
+user  0m0.062s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sll.hex none
+
+real  0m0.093s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slli.hex none
+
+real  0m0.092s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slliw.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sllw.hex none
+
+real  0m0.298s
+user  0m0.069s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slt.hex none
+
+real  0m0.090s
+user  0m0.065s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-slti.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sltiu.hex none
+
+real  0m0.091s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sltu.hex none
+
+real  0m0.091s
+user  0m0.067s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sra.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-srai.hex none
+
+real  0m0.087s
+user  0m0.063s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sraiw.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sraw.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-srliw.hex none
+
+real  0m0.090s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-srlw.hex none
+
+real  0m0.092s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-sub.hex none
+
+real  0m0.500s
+user  0m0.067s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-subw.hex none
+
+real  0m0.099s
+user  0m0.065s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-xor.hex none
+
+real  0m0.091s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64ui-p-xori.hex none
+
+real  0m0.089s
+user  0m0.064s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64si-p-coreid.hex none
+
+real  0m0.293s
+user  0m0.065s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64si-p-csr.hex none
+
+real  0m0.497s
+user  0m0.066s
+sys 0m0.006s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/rv64si-pm-ipi.hex none
+
+real  0m0.084s
+user  0m0.061s
+sys 0m0.005s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/dhrystone.riscv.hex none
+
+real  0m0.124s
+user  0m0.072s
+sys 0m0.010s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/median.riscv.hex none
+
+real  0m0.121s
+user  0m0.072s
+sys 0m0.009s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/multiply.riscv.hex none
+
+real  0m0.536s
+user  0m0.072s
+sys 0m0.010s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/qsort.riscv.hex none
+
+real  0m0.328s
+user  0m0.073s
+sys 0m0.010s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/towers.riscv.hex none
+
+real  0m0.521s
+user  0m0.072s
+sys 0m0.009s
+time target_split/emulator-BOOMCPPConfig +nocomm +dramsim +max-cycles=1000 +loadmem=target_split/output/vvadd.riscv.hex none
+
+real  0m0.320s
+user  0m0.068s
+sys 0m0.008s
