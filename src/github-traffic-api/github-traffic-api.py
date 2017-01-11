@@ -5,7 +5,7 @@ github-traffic-api - use the experimental traffic API to pull traffic info from 
 
 @author:     Jim Lawson
 
-@copyright:  2014 UC Berkeley. All rights reserved.
+@copyright:  2017 UC Berkeley. All rights reserved.
 
 @license:    license
 
@@ -41,7 +41,6 @@ class CLIError(Exception):
     def __unicode__(self):
         return self.msg
 
-localRepoNames = [ '/Users/jrl/noArc/clients/ucb/git/ucb-bar/chisel:master']
 doExit = False
 continueOnError = False
 
@@ -87,7 +86,7 @@ def main(argv=None): # IGNORE:C0111
     program_license = '''%s
 
   Created by Jim Lawson on %s.
-  Copyright 2014 UC Berkeley. All rights reserved.
+  Copyright 2017 UC Berkeley. All rights reserved.
 
   Licensed under the Apache License 2.0
   http://www.apache.org/licenses/LICENSE-2.0
@@ -106,7 +105,7 @@ USAGE
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument('-s', '--save_csv', dest='save_csv', default=None, metavar="path", help="save results in specified file [default: %(default)s]")
         parser.add_argument('-p', '--period', dest='period', choices=['day', 'week'], default='week', help="period for traffic statistics [default: %(default)s]")
-        parser.add_argument(dest="paths", help="paths to folders containing clones of github repositories to be tested [default: %(default)s]",  default=localRepoNames, metavar="path", nargs='*')
+        parser.add_argument(dest="paths", help="paths to github repositories (local directory or URL)", metavar="paths", nargs='+')
 
         # Process arguments
         args = parser.parse_args()
