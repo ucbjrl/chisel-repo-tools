@@ -107,7 +107,15 @@ specialNames = set([
                     'metanext'
                     ])
 
-def ChiselFixName(name):
+specialName = re.compile(r'''.*Ducky.*''')
+
+ghlmap = (
+          ('jcmartin', 'James Martin'),
+          ('ben-k', 'Ben Keller'),
+          ('da-steve101', 'Stephen Tridgell'),
+          ('Martoni', 'Fabien Marteau')
+       )
+def chiselFixLogin(name):
     if name == 'jackbackrack':
         name = 'Jonathan Bachrach'
     elif name == 'albert-magyar':
@@ -116,8 +124,121 @@ def ChiselFixName(name):
         name = 'Richard Lin'
     return name
 
+emailAddresses = {}
+def canonicalName(name, login, email):
+    ''' Return the canonical name from the supplied arguments.
+    '''
+    result = ''
+    if name:
+        result = chiselFixLogin(name)
+    else:
+        testl = ''
+        if login:
+            testl = chiselFixLogin(login)
+        # Do we have an email address?
+        teste = ''
+        if email and emailAddresses.has_key(email):
+            teste = emailAddresses[email]
+        # Did we generate a name from the login name?
+        if testl and testl != login:
+            result = testl
+        elif teste:
+            result = teste
+        elif testl:
+            result = testl
+        else:
+            result = email
+    if email:
+        emailAddresses[email] = result
+    return result
+
+# We manage duplicates by storing user info in three dictionaries keyed on the name, email, and login.
+# If there are no duplicates, each dictionary will have a single entry for each key.
+users = { 'id': {}, 'login': {}, 'name': {}, 'email': {} }
+def addUserInfo(uId, login, name, email, company):
+    modName = __name__ + 'addUserInfo'
+    thisKey = { 'id': uId, 'login': login, 'name': name, 'email': email }
+    for metaId in users.keys():
+        try:
+            thisId = thisKey[metaId]
+            if thisId:
+                # Assume we'll want to add this record
+                doAdd = True
+                if not users[metaId].has_key(thisId):
+                    users[metaId][thisId] = []
+                else:
+                    # We already have some records. Is this one of them?
+                    for val in users[metaId][thisId]:
+                        if val['id'] == uId:
+                            doAdd = False
+                            break
+                if doAdd:
+                    users[metaId][thisId].append({'id': uId, 'login': login, 'name': name, 'email': email, 'company': company })
+        except Exception, e:
+            print '%s in %s' % (e, modName)
+            raise(e)
+
+def getUserInfo(uid):
+    modName = __name__ + 'getUserInfo'
+    try:
+        u = users['id'][uid][0]
+        return u
+
+    except Exception, e:
+        return None
+
+def uniqueUsers():
+    modName = __name__ + 'uniqueUsers'
+    idMap = {}
+    for metaId in users.keys():
+        for key, vals in users[metaId].iteritems():
+            try:
+                if vals and len(vals) > 1:
+                    # We've found a duplicate.
+                    # key is the common field.
+                    if metaId in set(['login', 'id']):
+                        # This shouldn't happen. 'id' and 'login' should be unique
+                        raise CLIError('%s duplicate - "%s"' % (metaId, key))
+                    elif metaId in set(['email', 'name']):
+
+                        def sortVals(x, y):
+                            ''' Choose the best id for this user.
+                                Our preference is the one with the longest name, or the shortest email address.'''
+                            result = 0
+                            xnameWeight = len(x['name']) if x['name'] else 0
+                            ynameWeight = len(y['name']) if y['name'] else 0
+                            if xnameWeight > ynameWeight:
+                                result = -1
+                            elif xnameWeight == ynameWeight:
+                                xemailWeight = len(x['email']) if x['email'] else sys.maxsize
+                                yemailWeight = len(y['email']) if y['email'] else sys.maxsize
+                                if xemailWeight < yemailWeight:
+                                    return -1
+                                elif xemailWeight > yemailWeight:
+                                    return 1
+                            else:
+                                result = 1
+                            return result
+
+                        pref = sorted(vals, cmp=sortVals)[0]
+                        for val in vals:
+                            if val['id'] != pref['id']:
+                                old = val['id']
+                                new = pref['id']
+                                # Do we already have this mapping
+                                if idMap.has_key(old):
+                                    if idMap[old] != new:
+                                        raise CLIError('inconsistent duplicate map (%s, %s) for %d' % (idMap[old], new, old))
+                                else:
+                                    idMap[old] = new
+            except Exception, e:
+                print '%s in %s' % (e, modName)
+                raise(e)
+    return idMap
+                    
+
 def doWork(paths, verbose):
-#    modName = __name__ + '.doWork'
+    modName = __name__ + '.doWork'
     
     repos = MonitorRepos(paths)
     if repos is None:
@@ -138,66 +259,92 @@ def doWork(paths, verbose):
 #        contribNames = [c.login for c in repoObj.remoterepo.iter_contributors()]
 #        contribNames = [c.login for c in repo.iter_contributors()]
         contribs = {}
-        extUsers = {}
-        emailAddresses = {}
         if not isRepoLocal:
             sha = ''
-            for pr in repo.pull_requests(state='all'):
-                login = pr.user.login
+            for pr in repo.pull_requests(state='closed'):
+                contribId = pr.user.login
                 title = pr.title if pr.title and pr.title != '' else pr.body_text
                 files = [f.filename for f in pr.files()]
-                if not contribs.has_key(login):
-                    contribs[login] = []
+                if not contribs.has_key(contribId):
+                    contribs[contribId] = []
                 areas = areasFromFiles(files)
-                contribs[login].append({ 'sha': sha, 'title': title, 'files': files, 'areas': areas })
-#              print '%d, %d\n' % (len(contribs.keys()), len(contribs[login]))
-
+                contribs[contribId].append({ 'sha': sha, 'title': title, 'files': files, 'areas': areas })
+#              print '%d, %d\n' % (len(contribs.keys()), len(contribs[contribId]))
+                break
 #        for commit in repo.remoterepo.iter_commits():
         for commit in repo.iter_commits() if isRepoLocal else repo.commits():
             sha = ''
-            login = ''
+            contribId = ''
             title = ''
             files = []
+            aName = ''
+            name = ''
+            email = ''
+            contribId = None
+            login = None
             try:
                 if isRepoLocal:
                     sha = commit.hexsha
                     email = commit.author.email
-                    name = ChiselFixName(commit.author.name)
-                    # Do we have a user for this email address?
-                    if emailAddresses.has_key(email):
-                        name = emailAddresses[email]
-                    else:
-                        emailAddresses[email] = name
+                    aName = commit.author.name
                     # 'name' may not be unique, but the same user may have multiple email addresses.
-                    (first, sep, last) = name.rpartition(' ')
-                    login = last + '_' + first
+                    if (not (specialName.match(aName) or specialName.match(email)) and False):
+                        continue
+                    (first, sep, last) = aName.rpartition(' ')
+                    contribId = last + '_' + first
                     title = commit.summary
                     files = commit.stats.files.keys()
-                    if not extUsers.has_key(login):
-                        extUsers[login] = {'name': name, 'email': email, 'company': ''}
                 else:
                     commit.refresh()
                     # If there isn't an author record, this probably originated outside of github
                     if commit.author is None:
-                        login = commit.commit.author[u'email']
+                        email = commit.commit.author[u'email']
+                        aName = commit.commit.author[u'name']
+                        contribId = aName if aName else email
                         title = commit.commit.message
-                        if not extUsers.has_key(login):
-                            extUsers[login] = {'name': commit.commit.author[u'name'], 'email': commit.commit.author[u'email'], 'company': ''}
                     else:
-                        login = commit.author.login if commit.author.login and commit.author.login != '' else commit.committer.login
+                        # We'll pick up name and email after we've collected all the logins.
+                        login = commit.author.login
+                        contribId = login
                         title = commit.commit.message
                     sha = commit.sha
                     # Fetch the (normally) missing fields.
                     files = [f[u'filename'] for f in commit.files]
 
-                if not contribs.has_key(login):
-                    contribs[login] = []
+                name = canonicalName(aName, login, email)
+                if not contribs.has_key(contribId):
+                    contribs[contribId] = []
+                    if aName or email:
+                        addUserInfo(contribId, login, name, email, '')
                 areas = areasFromFiles(files)
-                contribs[login].append({ 'sha': sha, 'title': title, 'files': files, 'areas': areas })
-#              print '%d, %d\n' % (len(contribs.keys()), len(contribs[login]))
-                break
+                contribs[contribId].append({ 'sha': sha, 'title': title, 'files': files, 'areas': areas })
+#                print '%d, %d, %d\n' % (len(contribs.keys()), len(contribs[contribId]), len(users['id'].keys()))
+#                if len(contribs.keys()) > 5:
+#                    break
             except Exception, e:
-                print e
+                print '%s in %s' % (e, modName)
+                raise(e)
+
+        # Go through the contributions and get the author info for non-local repos.
+        if not isRepoLocal:
+            for contribId in contribs.keys():
+                # Do we have a GitHub login for this Id?
+                login = contribId
+                ui = getUserInfo(contribId)
+                if ui:
+                    login = ui['login']
+                if login:
+                    user = repoObj.gh.user(login)
+                    if user:
+                        name = canonicalName(user.name, contribId, user.email)
+                        addUserInfo(contribId, contribId, name, user.email, user.company)
+                    else:
+                        print 'no GutHub user info for - "%s"' % (contribId)
+                    
+        # Go through the contributions and try to coalesce those from the same author.
+        for oldId, newId in uniqueUsers().iteritems():
+            contribs[newId] += contribs[oldId]
+            del contribs[oldId]
 
         osep = '\t'
         def weight(x):
@@ -216,30 +363,17 @@ def doWork(paths, verbose):
                 result = cmp(x.lower(), y.lower())
             return result
 
-        for login in sorted(set(contribs.keys()), cmp=sortContributions):
-            username = ''
-            usercompany = ''
-            useremail = ''
-            user = None if isRepoLocal else repoObj.gh.user(login)
-            if user:
-                username = user.name
-                usercompany = user.company
-                useremail = user.email
+        for contribId in sorted(set(contribs.keys()), cmp=sortContributions):
+            ui = getUserInfo(contribId)
+            if ui:
+                number = len(contribs[contribId])
+                areaSet = areasFromChanges(contribs[contribId])
+                areas = ', '.join(areaSet)
+                info = {'contribs': str(number), 'contribId': ui['id'], 'name': ui['name'], 'company': ui['company'], 'email': ui['email'], 'areas': areas}
+                fields = [info[k] if info[k] else '' for k in ['contribs', 'contribId', 'name', 'company', 'email', 'areas']]
+                print osep.join(fields)
             else:
-                extuser = extUsers[login]
-                username = extuser['name']
-                usercompany = extuser['company']
-                useremail = extuser['email']
-                
-            areaSet = set()
-            number = 0
-            if contribs.has_key(login):
-                areaSet = areasFromChanges(contribs[login])
-                number = len(contribs[login])
-            areas = ', '.join(areaSet)
-            info = {'contribs': str(number), 'login': login, 'name': username, 'company': usercompany, 'email': useremail, 'areas': areas}
-            fields = [info[k] if info[k] else '' for k in ['contribs', 'login', 'name', 'company', 'email', 'areas']]
-            print osep.join(fields)
+                print 'Could not find "%s" in userInfo' % (contribId)
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
