@@ -3,6 +3,7 @@ Created on Aug 3, 2015
 
 @author: jrl
 '''
+from collections import OrderedDict 
 import fileinput
 import re
 
@@ -19,21 +20,23 @@ class CLIError(Exception):
 nbName = re.compile(r"""\s*(?P<name>\S.*\S)\s*$""")
 
 def tableify(lines):
-    contribs = {}
+    contribs = OrderedDict()
     for line in lines:
         fields = line.split("|")
-        nbMatch = nbName.match(fields[1])
+        nbMatch = nbName.match(fields[2])
         if not nbMatch:
-            raise CLIError("Bad line \"%s\"" % (line))
+            print "Bad line: no name \"%s\"" % (line)
+            continue
         name = nbMatch.group('name')
         (first, sep, last) = name.rpartition(' ')
         key = last.lower() + '_' + first.lower()
-        nbMatch = nbName.match(fields[2])
+        nbMatch = nbName.match(fields[5])
         if not nbMatch:
-            raise CLIError("Bad line \"%s\"" % (line))
+            print "Bad line: no desc \"%s\"" % (line)
+            continue
         desc = nbMatch.group('name')
         contribs[key] = { 'name': name, 'desc': desc }
-    for key in sorted(contribs.iterkeys()):
+    for key in contribs.iterkeys():
         name = contribs[key]['name']
         desc = contribs[key]['desc']
         if False:
