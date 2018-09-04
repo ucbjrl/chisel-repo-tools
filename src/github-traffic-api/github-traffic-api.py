@@ -18,7 +18,7 @@ import signal
 import sys
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
-from citJenkins.monitorRepos import BaseRepo
+from citSupport.monitorRepos import BaseRepo
 from traffic_clones import traffic_clones
 from json2csv import json_to_table, store_csv
 

@@ -22,7 +22,7 @@ import os
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
-from citJenkins.monitorRepos import BaseRepo
+from citSupport.monitorRepos import BaseRepo
 from bs4 import BeautifulSoup
 
 __all__ = []

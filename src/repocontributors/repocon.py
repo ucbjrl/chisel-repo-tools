@@ -19,7 +19,7 @@ import signal
 import sys
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
-from citJenkins.monitorRepos import MonitorRepos
+from citSupport.monitorRepos import MonitorRepos
 
 __all__ = []
 __version__ = 0.1
