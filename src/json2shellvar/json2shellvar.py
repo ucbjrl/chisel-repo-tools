@@ -1,4 +1,3 @@
-#!/usr/local/bin/python2.7
 # encoding: utf-8
 '''
 json2shellvar.json2shellvar -- convert JSON to shell variable definitions
@@ -22,7 +21,7 @@ import os
 import re
 import json
 import requests
-from urllib.parse import urlparse
+from urlparse import urlparse
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
