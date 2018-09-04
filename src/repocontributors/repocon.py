@@ -272,7 +272,7 @@ def doWork(paths, verbose):
 #              print '%d, %d\n' % (len(contribs.keys()), len(contribs[contribId]))
                 break
 #        for commit in repo.remoterepo.iter_commits():
-        for commit in repo.iter_commits() if isRepoLocal else repo.commits():
+        for tCommit in repo.iter_commits() if isRepoLocal else repo.commits():
             sha = ''
             contribId = ''
             title = ''
@@ -284,29 +284,29 @@ def doWork(paths, verbose):
             login = None
             try:
                 if isRepoLocal:
-                    sha = commit.hexsha
-                    email = commit.author.email
-                    aName = commit.author.name
+                    sha = tCommit.sha
+                    email = tCommit.author.email
+                    aName = tCommit.author.name
                     # 'name' may not be unique, but the same user may have multiple email addresses.
                     if (not (specialName.match(aName) or specialName.match(email)) and False):
                         continue
                     (first, sep, last) = aName.rpartition(' ')
                     contribId = last + '_' + first
-                    title = commit.summary
-                    files = commit.stats.files.keys()
+                    title = tCommit.summary
+                    files = tCommit.stats.files.keys()
                 else:
-                    commit.refresh()
+                    commit = repo.commit(tCommit.sha)
                     # If there isn't an author record, this probably originated outside of github
                     if commit.author is None:
-                        email = commit.commit.author[u'email']
-                        aName = commit.commit.author[u'name']
+                        author = commit.commit[u'author']
+                        email = author[u'email']
+                        aName = author[u'name']
                         contribId = aName if aName else email
-                        title = commit.commit.message
                     else:
                         # We'll pick up name and email after we've collected all the logins.
-                        login = commit.author.login
+                        login = commit.author[u'login']
                         contribId = login
-                        title = commit.commit.message
+                    title = commit.commit[u'message']
                     sha = commit.sha
                     # Fetch the (normally) missing fields.
                     files = [f[u'filename'] for f in commit.files]
