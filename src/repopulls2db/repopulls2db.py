@@ -41,7 +41,7 @@ class CLIError(Exception):
     def __unicode__(self):
         return self.msg
 
-localRepoNames = [ '/Users/jrl/noArc/clients/ucb/git/ucb-bar/chisel3:release']
+localRepoNames = [ '/Users/jrl/noArc/clients/ucb/git/ucb-bar/firrtl:master']
 unweightedLogins = set(['Lawson_Jim'])
 doExit = False
 continueOnError = False
@@ -69,17 +69,19 @@ def doWork(paths, verbose):
         exit(1)
     # Connect to the database
     client = MongoClient()
-    db = client['github']
+    db = client['git']
     pullRequestDB = db['pullRequests']
     pullCommitDB = db['pullCommits']
     pullCommitCommentDB = db['pullCommitComments']
     pullReviewCommentDB = db['pullReviewComments']
     issueDB = db['issues']
     issueCommentDB = db['issueComments']
-    commitDB = db['commits']
+    commitDB = db['firrtl_commits']
     commitCommentDB = db['commitComments']
     reviewDB = db['reviews']
     pullFileDB = db['pullFiles']
+    usersDB = db['users']
+    organizationsDB = db['organizations']
     for (repoName, repoObj) in repos.repoMap.iteritems():
         isRepoLocal = False
         repo = None
@@ -88,9 +90,9 @@ def doWork(paths, verbose):
         else:
             repo = repoObj.remoterepo
 
-        if not isRepoLocal:
+        if not isRepoLocal or True:
             sha = ''
-            if True:
+            if False:
                 for pr in repo.pull_requests(state='closed', number=-1, direction='asc'):
                     body = pr.body_text if pr.body_text else ''
                     title = pr.title if pr.title and pr.title != '' else body
@@ -150,6 +152,25 @@ def doWork(paths, verbose):
                         commitCommentDB.insert_one(comment.as_dict())
                     nCommitComments += 1
                 print 'commitComments: %d' % (nCommitComments)
+            if False:
+                nCommits = 0
+                for commit in repo.commits():
+                    if True:
+                        commit.refresh()
+                        commitDB.insert_one(commit.as_dict())
+                    nCommits += 1
+                print 'commits: %d' % (nCommits)
+            if True:
+                nAuthors = 0
+                for authorURL in commitDB.distinct('author.url'):
+                    authorA = authorURL.split('/')
+                    author = authorA[4]
+                    print 'author: %s' % author
+                    nAuthors += 1
+                    user = repoObj.gh.user(author)
+                    user.refresh()
+                    usersDB.replace_one({"login" : author}, user.as_dict(), upsert=True)
+                print 'authors: %d' % (nAuthors)
 #        for commit in repo.remoterepo.iter_commits():
 #        for commit in repo.iter_commits() if isRepoLocal else repo.commits():
 #             try:
