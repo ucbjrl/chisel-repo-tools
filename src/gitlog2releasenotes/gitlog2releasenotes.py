@@ -90,16 +90,21 @@ class GitLogLine:
         (c, p, t) = self.g2n(tline)
         assert(p == 1099 and t == 'Minor Scaladoc update')
 
-def doWork(file, verbose):
+class WorkContext:
+    def __init__(self, clientName, file):
+        self.clientName = clientName
+        self.file = file
+
+def doWork(wc, verbose):
     modName = __name__ + '.doWork'
     g2n = GitLogLine()
     # Connect to the database
     client = MongoClient()
-    db = client['git']
+    db = client[wc.clientName]
     commitDB = db['pr_commits']
     issueDB = db['issues']
     releaseNotes = {}
-    for line in file:
+    for line in wc.file:
         (commit, pr, text) = g2n.g2n(line)
         if text:
             if pr is None:
@@ -178,6 +183,7 @@ USAGE
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
+        parser.add_argument('-c', '--client', dest='clientName', required=True, help='Mongo client db name')
         parser.add_argument(dest='files', help='files to be converted', type=FileType('r'), nargs='*')
 
         # Process arguments
@@ -191,8 +197,9 @@ USAGE
 
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
-        for file in files:
-            doWork(file, verbose)
+        for afile in files:
+            workContext = WorkContext(args.clientName, afile)
+            doWork(workContext, verbose)
         return 0
  
     except KeyboardInterrupt:

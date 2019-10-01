@@ -17,6 +17,7 @@ import os
 import re
 import signal
 import sys
+import traceback
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from citSupport.monitorRepos import BaseRepo
@@ -24,6 +25,7 @@ from pymongo import MongoClient
 from github3.github import GitHub
 from github3.search import IssueSearchResult
 from github3.structs import SearchIterator
+from docutils.parsers.rst.directives import path
 
 __all__ = []
 __version__ = 0.1
@@ -62,19 +64,20 @@ class areaRE:
         self.reString = reString
         self.re = re.compile(self.reString)
 
-def doWork(path, verbose):
+class WorkContext:
+    def __init__(self, path, since):
+        self.path = path
+        self.since = since
+
+def doWork(wc, verbose):
     modName = __name__ + '.doWork'
+    path = wc.path
+    since = wc.since
     
     repoObj = BaseRepo(path)
     if repoObj is None:
         exit(1)
     repoObj.connect()
-    # Connect to the database
-    client = MongoClient()
-    db = client['git']
-    issueDB = db['issues']
-    eventDB = db['issue_events']
-    commitDB = db['pr_commits']
     isRepoLocal = False
     repo = None
     if isRepoLocal:
@@ -82,8 +85,17 @@ def doWork(path, verbose):
     else:
         repo = repoObj.remoterepo
 
-    if not isRepoLocal and False:
-        issues = repoObj.gh.search_issues(query='repo:freechipsproject/chisel3 closed:>2017-12-22')
+    # Connect to the database
+    client = MongoClient()
+    db = client['git' + repo.name]
+    issueDB = db['issues']
+    eventDB = db['issue_events']
+    commitDB = db['pr_commits']
+    if not isRepoLocal:
+        query = 'repo:' + repo.full_name
+        if since:
+            query += ' closed:>' + since
+        issues = repoObj.gh.search_issues(query)
         assert isinstance(issues, SearchIterator)
 #        print 'Issues: %d' % (issues.count)
         for issue in issues:
@@ -159,30 +171,33 @@ USAGE
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
+        parser.add_argument('-r', '--repo', dest='repo', help='repository to slurp', default='.', metavar='path')
+        parser.add_argument('-s', '--since', dest='since', help='since (YYYY-MM-DD)', default=None)
 
         # Process arguments
         args = parser.parse_args()
 
-        path = '.'
         verbose = args.verbose
 
         if verbose > 0:
             print("Verbose mode on")
+        workContext = WorkContext(args.repo, args.since)
 
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
-        doWork(path, verbose)
+        doWork(workContext, verbose)
         return 0
  
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return 0
     except Exception, e:
-        if DEBUG or TESTRUN:
-            raise(e)
-        indent = len(program_name) * " "
-        sys.stderr.write(program_name + ": " + repr(e) + "\n")
-        sys.stderr.write(indent + "  for help use --help")
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        if not(DEBUG or TESTRUN):
+            indent = len(program_name) * " "
+            sys.stderr.write(program_name + ": " + repr(e) + "\n")
+            sys.stderr.write(indent + "  for help use --help")
         return 2
 
 if __name__ == "__main__":
