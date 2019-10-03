@@ -1,13 +1,11 @@
 '''
-repoissues2db.repoissues2db -- extract issues from GitHib repo
-
-repoissues2db.repoissues2db is a module that connects to a GitHub repo and extracts issue information.
+repoissues2db.repoissues2db -- extract issues and commits from GitHib repo and store them in a local database
 
 @author:     Jim Lawson
 
 @copyright:  2019 UC Berkeley. All rights reserved.
 
-@license:    license
+@license:    BSD-3-Clause
 
 @contact:    ucbjrl@berkeley.edu
 @deffield    updated: Updated
@@ -74,9 +72,11 @@ def doWork(wc, verbose):
     path = wc.path
     since = wc.since
     
+    # Find the local git repo from the path
     repoObj = BaseRepo(path)
     if repoObj is None:
         exit(1)
+    # Connect to the GitHub repository
     repoObj.connect()
     isRepoLocal = False
     repo = None
@@ -92,12 +92,13 @@ def doWork(wc, verbose):
     eventDB = db['issue_events']
     commitDB = db['pr_commits']
     if not isRepoLocal:
+        # Build the query for GitHub - keep it pretty simple
         query = 'repo:' + repo.full_name
         if since:
             query += ' closed:>' + since
+        # Grab each issue and insert it into the database
         issues = repoObj.gh.search_issues(query)
         assert isinstance(issues, SearchIterator)
-#        print 'Issues: %d' % (issues.count)
         for issue in issues:
             assert isinstance(issue, IssueSearchResult)
             issueId = issue.issue.id
@@ -122,6 +123,7 @@ def doWork(wc, verbose):
                     except AttributeError:
                         pass
             if True and isPR:
+                # If the issue is a pull request, grab its associated commits and insert them in the database
                 try:
                     repoPR = repo.pull_request(issueId)
                     for shortCommit in repoPR.commits():
@@ -156,8 +158,8 @@ def main(argv=None): # IGNORE:C0111
   Created by Jim Lawson on %s.
   Copyright 2017 UC Berkeley. All rights reserved.
 
-  Licensed under the Apache License 2.0
-  http://www.apache.org/licenses/LICENSE-2.0
+  Licensed under the BSD-3-Clause license
+  https://opensource.org/licenses/BSD-3-Clause
 
   Distributed on an "AS IS" basis without warranties
   or conditions of any kind, either express or implied.
