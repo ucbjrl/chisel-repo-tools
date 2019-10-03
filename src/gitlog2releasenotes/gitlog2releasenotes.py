@@ -142,28 +142,32 @@ def doWork(wc, verbose):
                     for label in pullRequest['labels']:
                         if label['name'] in categories.keys():
                             category = categories[label['name']]
-                    # Eliminate any '\r' in the body.
-                    body = pullRequest['body'].replace('\r', '')
-                    # See if there's a **Release Notes** tag in the pull request body
-                    rnTag1 = '\n**Release Notes**\n'
-                    rnStartTag1 = body.find(rnTag1)
-                    rnText = ''
-                    if rnStartTag1 > -1:
-                        # Found a **Release Notes** tag. Do we need to skip instruction text as well?
-                        rnIndex = rnStartTag1 + len(rnTag1)
-                        rnTag2 = '<!--\nText from here to the end of the body will be considered for inclusion in the release notes for the version containing this pull request.\n-->'
-                        if body.startswith(rnTag2, rnIndex):
-                            rnIndex += len(rnTag2)
-                        rnText = body[rnIndex:].strip()
+                    # Have we already encountered this PR?
+                    if pr not in releaseNotes[category]:
+                        # Eliminate any '\r' in the body.
+                        body = pullRequest['body'].replace('\r', '')
+                        # See if there's a **Release Notes** tag in the pull request body
+                        rnTag1 = '\n**Release Notes**\n'
+                        rnStartTag1 = body.find(rnTag1)
+                        rnText = ''
+                        rnType = 'c'
+                        if rnStartTag1 > -1:
+                            # Found a **Release Notes** tag. Do we need to skip instruction text as well?
+                            rnIndex = rnStartTag1 + len(rnTag1)
+                            rnTag2 = '<!--\nText from here to the end of the body will be considered for inclusion in the release notes for the version containing this pull request.\n-->'
+                            if body.startswith(rnTag2, rnIndex):
+                                rnIndex += len(rnTag2)
+                            rnText = body[rnIndex:].strip()
+                            if len(rnText) > 4:
+                                # We have **Release Notes** for this PR. Use that as the text.
+                                rnType = 'rn'
+                                text = rnText
+                    else:
+                        rnType = releaseNotes[category][pr].keys()[0]
                 else:
                     print('No PR %d in %s' % (pr, wc.database), file=sys.stderr)
                 # Get the slot for this PR
                 categorizedReleaseNotes = releaseNotes[category]
-                rnType = 'c'
-                if len(rnText) > 4:
-                    # We have **Release Notes** for this PR. Use that as the text.
-                    rnType = 'rn'
-                    text = rnText
                 if pr not in categorizedReleaseNotes:
                     # We haven't seen this PR before. 
                     categorizedReleaseNotes[pr] = {}
