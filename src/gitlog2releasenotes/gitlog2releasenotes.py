@@ -1,18 +1,17 @@
 '''
-gitlog2releasenotes.gitlog2releasenotes -- extract pull requests from GitHib repo
-
-gitlog2releasenotes.gitlog2releasenotes is a module that connects to a GitHub repo and extracts pull request information.
+gitlog2releasenotes.gitlog2releasenotes -- convert list of (oneline) commits into release notes using a database populated with commits and issues.
 
 @author:     Jim Lawson
 
 @copyright:  2019 UC Berkeley. All rights reserved.
 
-@license:    license
+@license:    BSD-3-Clause
 
 @contact:    ucbjrl@berkeley.edu
 @deffield    updated: Updated
 '''
 
+from __future__ import print_function
 import os
 import re
 import signal
@@ -22,6 +21,7 @@ from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
 from citSupport.monitorRepos import BaseRepo
 from pymongo import MongoClient
+from collections import OrderedDict
 
 __all__ = []
 __version__ = 0.1
@@ -48,17 +48,19 @@ homeDir = os.getcwd()
 
 def sigterm(signum, frame):
     global doExit
-    print '%s: signal %d' % (__name__, signum)
+    print ('%s: signal %d' % (__name__, signum))
     if signum == signal.SIGTERM:
         doExit = True
 
 class GitLogLine:
     def __init__(self):
+        # Various regex's to match typical single-line commit logs
         self.lineRegex = re.compile(r"""^(?P<commit>([0-9A-Fa-f]+)) (?P<text>.*)$""")
         self.mergeRegex = re.compile(r"""^Merge pull request #(?P<pr>(\d+)) from """)
         self.mergeBranchRegex = re.compile(r"""^Merge (remote-tracking )?branch '[^']+' into \S+""")
         self.prRegex = re.compile(r"""^(?P<text>(.+))( \(#(?P<pr>(\d+))\))$""")
 
+    # Analyze a commit log line and return a triple - (commit (sha as text), pull request id (int), text)
     def g2n(self, line):
         lm = self.lineRegex.match(line)
         if lm is None:
@@ -91,8 +93,8 @@ class GitLogLine:
         assert(p == 1099 and t == 'Minor Scaladoc update')
 
 class WorkContext:
-    def __init__(self, clientName, file):
-        self.clientName = clientName
+    def __init__(self, database, file):
+        self.database = database
         self.file = file
 
 def doWork(wc, verbose):
@@ -100,53 +102,108 @@ def doWork(wc, verbose):
     g2n = GitLogLine()
     # Connect to the database
     client = MongoClient()
-    db = client[wc.clientName]
+    db = client[wc.database]
+    # We assume the existence of at least two 'collections' (tables): pr_commits and issues
     commitDB = db['pr_commits']
     issueDB = db['issues']
     releaseNotes = {}
+    releaseNotesNoPR = []
+    # Use labels to categorize pull requests.
+    # Each element maps a label string to a category (we may allocate the same category to various labels.
+    # The order determines the reporting order.
+    categories = OrderedDict([('API Modification', 'API Modification'), ('bug', 'Fix'), ('bugfix', 'Fix'), ('', 'Feature')])
+    for category in set(categories.values()):
+        releaseNotes[category] = {}
     for line in wc.file:
+        # Set the default category
+        category = 'Feature'
+        # Parse the log line
         (commit, pr, text) = g2n.g2n(line)
+        # If there isn't any text, this is a log line we're not interested in (i.e., a merge commit)
         if text:
             if pr is None:
+                # If we couldn't find a pull request number in the log line, look for the matching commit (sha) in the database
                 commitAbbrevMatch = re.compile('^' + commit)
                 commitRecord = commitDB.find_one({ "sha" : {'$regex': commitAbbrevMatch}})
                 if commitRecord is None:
+                    # If we couldn't find a matching commit record based on the sha, try the commit message as a match
                     commitMessageMatch = re.compile('^' + re.escape(text))
                     commitRecord = commitDB.find_one({ "commit.message" : {'$regex': commitMessageMatch}})
                 if commitRecord:
                     pr = commitRecord['pr']
             if pr:
-                if pr not in releaseNotes:
-                    releaseNotes[pr] = {}
-                pullRequest = issueDB.find_one({ "number" : pr})
-                title = pullRequest['title']
-                if len(title) > len(text):
-                    text = title
-                body = pullRequest['body'].replace('\r', '')
-                rnTag1 = '\n**Release Notes**\n'
-                rnStartTag1 = body.find(rnTag1)
+                # We have a PR. Pull it out of the database
                 rnText = ''
-                if rnStartTag1 > -1:
-                    rnIndex = rnStartTag1 + len(rnTag1)
-                    rnTag2 = '<!--\nText from here to the end of the body will be considered for inclusion in the release notes for the version containing this pull request.\n-->'
-                    if body.startswith(rnTag2, rnIndex):
-                        rnIndex += len(rnTag2)
-                    rnText = body[rnIndex:].strip()
-                if len(rnText) > 4:
-                    releaseNotes[pr]['rn'] = title + '\n' + rnText
+                title = ''
+                pullRequest = issueDB.find_one({ "number" : pr})
+                if pullRequest:
+                    # Grab its important fields.
+                    title = pullRequest['title']
+                    for label in pullRequest['labels']:
+                        if label['name'] in categories.keys():
+                            category = categories[label['name']]
+                    # Eliminate any '\r' in the body.
+                    body = pullRequest['body'].replace('\r', '')
+                    # See if there's a **Release Notes** tag in the pull request body
+                    rnTag1 = '\n**Release Notes**\n'
+                    rnStartTag1 = body.find(rnTag1)
+                    rnText = ''
+                    if rnStartTag1 > -1:
+                        # Found a **Release Notes** tag. Do we need to skip instruction text as well?
+                        rnIndex = rnStartTag1 + len(rnTag1)
+                        rnTag2 = '<!--\nText from here to the end of the body will be considered for inclusion in the release notes for the version containing this pull request.\n-->'
+                        if body.startswith(rnTag2, rnIndex):
+                            rnIndex += len(rnTag2)
+                        rnText = body[rnIndex:].strip()
                 else:
-                    if 'c' not in releaseNotes[pr]:
-                        releaseNotes[pr]['c'] = []
-                    releaseNotes[pr]['c'].append(text)
+                    print('No PR %d in %s' % (pr, wc.database), file=sys.stderr)
+                # Get the slot for this PR
+                categorizedReleaseNotes = releaseNotes[category]
+                rnType = 'c'
+                if len(rnText) > 4:
+                    # We have **Release Notes** for this PR. Use that as the text.
+                    rnType = 'rn'
+                    text = rnText
+                if pr not in categorizedReleaseNotes:
+                    # We haven't seen this PR before. 
+                    categorizedReleaseNotes[pr] = {}
+                    categorizedReleaseNotes[pr][rnType] = [title]
+                    if text != title:
+                        categorizedReleaseNotes[pr][rnType].append(text)
+                elif rnType == 'c' and text not in categorizedReleaseNotes[pr][rnType]:
+                    # If we've seen this PR before, but we don't have **Release Notes** for it, add the commit text if we don't already have it.
+                    categorizedReleaseNotes[pr][rnType].append(text)
+                   
             else:
-                print '(?) %s' % (text)
-    for key in sorted(releaseNotes):
-        if 'rn' in releaseNotes[key]:
-            text = releaseNotes[key]['rn']
-        else:
-            text = '\n'.join(releaseNotes[key]['c'])
-        print '(#%d) %s' % (key, text)
-        print
+                # No PR for this commit. Make sure it shows up somewhere
+                releaseNotesNoPR.append((commit, text))
+
+    # Output the no-PR commits
+    for (c, t) in releaseNotesNoPR:
+        asciiText = text.encode('ascii', 'replace').decode()
+        print ('%s %s' % (c, asciiText))
+    
+    # Since we may have multiple labels mapped into the same category,
+    # generate the set of legal labels (in the appropriate order) for this run.
+    categoryLabels = []
+    for category in categories:
+        label = categories[category]        
+        if releaseNotes[label] and label not in categoryLabels:
+            categoryLabels.append(label)
+
+    # Output a category label
+    for label in categoryLabels:            
+        if label != '':
+            markdown = '### '
+            print(markdown + label)
+        # Output all the PRs under that label
+        categorizedReleaseNotes = releaseNotes[label]
+        for key in sorted(categorizedReleaseNotes):
+            rnType = 'rn' if 'rn' in categorizedReleaseNotes[key] else 'c'
+            text = '\n'.join(categorizedReleaseNotes[key][rnType])
+            asciiText = text.encode('ascii', 'replace').decode()
+            print ('(#%d) %s' % (key, asciiText))
+            print ()
     return 0
 
 
@@ -168,8 +225,8 @@ def main(argv=None): # IGNORE:C0111
   Created by Jim Lawson on %s.
   Copyright 2019 UC Berkeley. All rights reserved.
 
-  Licensed under the Apache License 2.0
-  http://www.apache.org/licenses/LICENSE-2.0
+  Licensed under the BSD-3-Clause license
+  https://opensource.org/licenses/BSD-3-Clause
 
   Distributed on an "AS IS" basis without warranties
   or conditions of any kind, either express or implied.
@@ -183,7 +240,7 @@ USAGE
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
-        parser.add_argument('-c', '--client', dest='clientName', required=True, help='Mongo client db name')
+        parser.add_argument('-b', '--database', dest='database', required=True, help='database name')
         parser.add_argument(dest='files', help='files to be converted', type=FileType('r'), nargs='*')
 
         # Process arguments
@@ -198,7 +255,7 @@ USAGE
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
         for afile in files:
-            workContext = WorkContext(args.clientName, afile)
+            workContext = WorkContext(args.database, afile)
             doWork(workContext, verbose)
         return 0
  
@@ -207,7 +264,7 @@ USAGE
         return 0
     except Exception, e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        print ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        print (''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         if not(DEBUG or TESTRUN):
             indent = len(program_name) * " "
             sys.stderr.write(program_name + ": " + repr(e) + "\n")
