@@ -82,14 +82,6 @@ class GitLogLine:
             p = int(mm.group('pr'))
             t = None
         return (c, p, t)
-    
-    def test(self):
-        mline = 'df0e0b1c Merge pull request #1022 from freechipsproject/cleanup-scaladoc'
-        tline = 'dad4c236 Minor Scaladoc update (#1099)'
-        (c, p, t) = self.g2n(mline)
-        assert(p == 1022 and t is None)
-        (c, p, t) = self.g2n(tline)
-        assert(p == 1099 and t == 'Minor Scaladoc update')
 
 class WorkContext:
     def __init__(self, database, file):
@@ -138,9 +130,12 @@ def doWork(wc, verbose):
                 if pullRequest:
                     # Grab its important fields.
                     title = pullRequest['title']
-                    for label in pullRequest['labels']:
-                        if label['name'] in list(categories.keys()):
-                            category = categories[label['name']]
+                    labels = [l['name'] for l in pullRequest['labels']]
+                    if labels:
+                        for label in list(categories.keys()):
+                            if label in labels:
+                                category = categories[label]
+                                break
                     # Have we already encountered this PR?
                     if pr not in releaseNotes[category]:
                         # Eliminate any '\r' in the body.
@@ -183,7 +178,7 @@ def doWork(wc, verbose):
 
     # Output the no-PR commits
     for (c, t) in releaseNotesNoPR:
-        asciiText = text.encode('ascii', 'replace').decode()
+        asciiText = t.encode('ascii', 'replace').decode()
         print ('%s %s' % (c, asciiText))
     
     # Since we may have multiple labels mapped into the same category,
