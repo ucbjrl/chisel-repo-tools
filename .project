@@ -2,9 +2,6 @@
 <projectDescription>
 	<name>repo-tools</name>
 	<comment></comment>
-	<projects>
-		<project>cit-support</project>
-	</projects>
 	<buildSpec>
 		<buildCommand>
 			<name>org.python.pydev.PyDevBuilder</name>

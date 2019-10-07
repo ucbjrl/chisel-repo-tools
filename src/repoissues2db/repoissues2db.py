@@ -19,11 +19,9 @@ import traceback
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from citSupport.monitorRepos import BaseRepo
-from pymongo import MongoClient
-from github3.github import GitHub
+from pymongo.mongo_client import MongoClient
 from github3.search import IssueSearchResult
 from github3.structs import SearchIterator
-from docutils.parsers.rst.directives import path
 
 __all__ = []
 __version__ = 0.1
@@ -51,7 +49,7 @@ homeDir = os.getcwd()
 
 def sigterm(signum, frame):
     global doExit
-    print 'repoissues2db: signal %d' % (signum)
+    print('repoissues2db: signal %d' % (signum))
     if signum == signal.SIGTERM:
         doExit = True
 
@@ -104,13 +102,13 @@ def doWork(wc, verbose):
             issueId = issue.issue.id
             try:
                 insertId = issueDB.insert_one(issue.as_dict()).inserted_id
-                print ' '.join([str(issueId), str(insertId)])
+                print(' '.join([str(issueId), str(insertId)]))
             except AttributeError:
                 pass
     if True:
         for dbIssue in issueDB.find({}):
             issueId = dbIssue['number']
-            print '%d' % (issueId)
+            print('%d' % (issueId))
             repoIssue = repo.issue(issueId)
             isPR = hasattr(repoIssue, 'pull_request_urls') and repoIssue.pull_request_urls is not None and len(repoIssue.pull_request_urls) > 0
             if False:
@@ -119,7 +117,7 @@ def doWork(wc, verbose):
                     eventId = event.id
                     try:
                         insertId = eventDB.insert_one(event.as_dict()).inserted_id._inc
-                        print ' '.join([str(eventId), str(insertId._pid)])
+                        print(' '.join([str(eventId), str(insertId._pid)]))
                     except AttributeError:
                         pass
             if True and isPR:
@@ -132,11 +130,11 @@ def doWork(wc, verbose):
                         commitId = commit['sha']
                         try:
                             insertId = commitDB.insert_one(commit).inserted_id._inc
-                            print ' '.join([commitId, str(insertId)])
+                            print(' '.join([commitId, str(insertId)]))
                         except AttributeError:
                             pass
                 except:
-                    print 'Bang!'
+                    print('Bang!')
                 
 
 
@@ -193,9 +191,9 @@ USAGE
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return 0
-    except Exception, e:
+    except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        print ''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        print(''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         if not(DEBUG or TESTRUN):
             indent = len(program_name) * " "
             sys.stderr.write(program_name + ": " + repr(e) + "\n")

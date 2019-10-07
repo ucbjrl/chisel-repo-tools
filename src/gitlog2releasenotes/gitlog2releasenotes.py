@@ -11,7 +11,7 @@ gitlog2releasenotes.gitlog2releasenotes -- convert list of (oneline) commits int
 @deffield    updated: Updated
 '''
 
-from __future__ import print_function
+
 import os
 import re
 import signal
@@ -19,8 +19,7 @@ import sys
 import traceback
 from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
-from citSupport.monitorRepos import BaseRepo
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
 from collections import OrderedDict
 
 __all__ = []
@@ -140,7 +139,7 @@ def doWork(wc, verbose):
                     # Grab its important fields.
                     title = pullRequest['title']
                     for label in pullRequest['labels']:
-                        if label['name'] in categories.keys():
+                        if label['name'] in list(categories.keys()):
                             category = categories[label['name']]
                     # Have we already encountered this PR?
                     if pr not in releaseNotes[category]:
@@ -163,7 +162,7 @@ def doWork(wc, verbose):
                                 rnType = 'rn'
                                 text = rnText
                     else:
-                        rnType = releaseNotes[category][pr].keys()[0]
+                        rnType = list(releaseNotes[category][pr].keys())[0]
                 else:
                     print('No PR %d in %s' % (pr, wc.database), file=sys.stderr)
                 # Get the slot for this PR
@@ -266,7 +265,7 @@ USAGE
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return 0
-    except Exception, e:
+    except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print (''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         if not(DEBUG or TESTRUN):
