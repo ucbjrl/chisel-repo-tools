@@ -45,7 +45,7 @@ class CNVersion:
     nComponents = 3
     MAJOR_SLICE = slice(2)
     MINOR_SLICE = slice(2, nComponents)
-    versionRegex = re.compile(r'"?(?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))"?')
+    versionRegex = re.compile(r'"?(?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)?((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT)?)"?')
 
     @staticmethod
     def valsToString(theInts:List[int]) -> str:
