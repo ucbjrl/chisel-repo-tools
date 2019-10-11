@@ -52,6 +52,17 @@ def sigterm(signum, frame):
     if signum == signal.SIGTERM:
         doExit = True
 
+versionFiles = {
+    'build.sbt' : {
+        'versionTag': r'[^[:alnum:]]version[[:space:]]*:=[[:space:]]*',
+        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$')
+    },
+    'build.sc' : {
+        'versionTag': r'[^[:alnum:]]def[[:space:]]+publishVersion[[:space:]]*=[[:space:]]*',
+        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$')
+    }
+}
+
 class WorkContext:
     def __init__(self, args, path):
         self.args = args
@@ -60,7 +71,40 @@ class WorkContext:
         self.files = []
         self.version = None
 
-#    def currentMinorVersionFromGitTags(self):
+    def currentMinorVersionFromGitTags(self, major: str) -> CNVersion:
+        vt = None
+        proc = subprocess.run(['git', 'tag', '-l'], cwd=self.path, capture_output=True, check=True, text=True)
+        if proc.returncode == 0:
+            majorMatch = re.compile(re.escape(major) + r'\.(?P<minor>(\d+))(-|\b)')
+            tags = proc.stdout.split('\n')
+            candidates = sorted(filter(majorMatch.search, tags), reverse=True)
+            for c in candidates:
+                vt = CNVersion(aString=c.strip('v'))
+                if vt and vt.theInts[2] is not None:
+                    break
+        return vt
+
+    def currentMinorVersionFromGitChangelog(self, major: str, baseFileName: str) -> CNVersion:
+        vt = None
+        regexes = versionFiles[baseFileName]
+        versionTag = regexes['versionTag']
+        versionLineRegex = regexes['versionLineRegex']
+        # Look in the git change log for the first version with a minor revision
+        minorRE = r'\.[0-9]+'
+        minorRevisionRE = versionTag + '"' + re.escape(major) + minorRE
+        proc = subprocess.run(['git', 'log', '-m', '-p', '-G' + minorRevisionRE, 'build.sbt'], cwd=self.path, capture_output=True, check=True, text=True)
+        if proc.returncode == 0:
+            changes = proc.stdout.split('\n')
+            candidates = filter(versionLineRegex.search, changes)
+            for c in candidates:
+                line = c.rstrip('\n')
+                lm = versionLineRegex.search(line)
+                if lm:
+                    versionString = lm.group('version')
+                    vt = CNVersion(aString=versionString)
+                    if vt and vt.theInts[2] is not None:
+                        break
+        return vt
 
     def determineVersion(self) -> CNVersion:
         """
@@ -75,12 +119,11 @@ class WorkContext:
         self.files = [f for f in dir.glob('build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
         versionTag = None
         for f in self.files:
-            if os.path.basename(f) == 'build.sbt':
-                versionTag = r'[^[:alnum:]]version[[:space:]]*:=[[:space:]]*'
-                versionLineRegex = re.compile(r'\bversion\s*:=\s*"(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))"')
-            elif os.path.basename(f) == 'build.sc':
-                versionTag = r'[^[:alnum:]]def[[:space:]]+publishVersion[[:space:]]*=[[:space:]]*'
-                versionLineRegex = re.compile(r'def publishVersion\s*=\s*"(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))"')
+            baseFilename = os.path.basename(f)
+            regexes = versionFiles[baseFilename]
+            versionTag = regexes['versionTag']
+            versionLineRegex = regexes['versionLineRegex']
+            myVersion = None
             with open(f, 'r') as input:
                 for l in input:
                     line = l.rstrip('\n')
@@ -88,72 +131,84 @@ class WorkContext:
                     if lm:
                         versionString = lm.group('version')
                         myVersion = CNVersion(aString=versionString)
-                        if version:
-                            if myVersion != version:
-                                raise CLIError('{f1} version {v1} != {f2} version {v2}'.format(f1=f1, v1=version, f2=f, v2=myVersion))
-                        else:
-                            version = myVersion
-                            f1 = f
                         break
-            print('{file}: {version} - {line}'.format(file=f, version=version, line=line))
-        if version:
-            # If we don't have a minor version, try and deduce it from git tags.
-            if version.theInts[2] is None and False:
-                major = '.'.join([str(i) for i in version.theInts[CNVersion.MAJOR_SLICE]])
-                if self.repo:
-                    tags = []
-                    proc = subprocess.run(['git', 'tag', '-l'], cwd=dir, capture_output=True, check=True, text=True)
-                    if proc.returncode == 0:
-                        majorMatch = re.compile(re.escape(major) + r'\.(?P<minor>(\d+))(-|\b)')
-                        tags = proc.stdout.split('\n')
-                        candidates = sorted(filter(majorMatch.search, tags), reverse=True)
-                        vt = None
-                        for c in candidates:
-                            vt = CNVersion(aString=c.strip('v'))
-                            if vt and vt.theInts[2] is not None:
-                                break
+            if myVersion:
+                print('{file}: {version} - {line}'.format(file=f, version=myVersion, line=line))
+                # If we don't have a minor version, try and deduce it from git tags.
+                if myVersion.theInts[2] is None:
+                    deducedVersions = []
+                    mismatchedVersions = []
+                    major = '.'.join([str(i) for i in myVersion.theInts[CNVersion.MAJOR_SLICE]])
+                    if self.repo:
+                        vt = self.currentMinorVersionFromGitTags(major)
                         if vt:
-                            version = CNVersion(aVersion=version, theInts=vt.theInts)
-            # If we don't have a minor version, try and deduce it from git change logs.
-            if version.theInts[2] is None:
-                major = '.'.join([str(i) for i in version.theInts[CNVersion.MAJOR_SLICE]])
-                if self.repo:
-                    tags = []
-                    # Look in the git change log for the first version with a minor revision
-                    versionTag = r'[^[:alnum:]]version[[:space:]]*:=[[:space:]]*'
-                    minorRE = r'\.[0-9]+'
-                    minorRevisionRE = versionTag + '"' + re.escape(major) + minorRE
-                    versionLineRegex = re.compile(r'\bversion\s*:=\s*"(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))"')
-                    proc = subprocess.run(['git', 'log', '-m', '-p', '-G' + minorRevisionRE, 'build.sbt'], cwd=dir, capture_output=True, check=True, text=True)
-                    if proc.returncode == 0:
-                        changes = proc.stdout.split('\n')
-                        candidates = filter(versionLineRegex.search, changes)
-                        vt = None
-                        for c in candidates:
-                            line = c.rstrip('\n')
-                            lm = versionLineRegex.search(line)
-                            if lm:
-                                versionString = lm.group('version')
-                                vt = CNVersion(aString=versionString)
-                                if vt and vt.theInts[2] is not None:
-                                    break
+                            deducedVersions.append(CNVersion(aVersion=myVersion, theInts=vt.theInts))
+                        vt = self.currentMinorVersionFromGitChangelog(major, baseFilename)
                         if vt:
-                            version = CNVersion(aVersion=version, theInts=vt.theInts)
+                            deducedVersions.append(CNVersion(aVersion=myVersion, theInts=vt.theInts))
+                    if len(deducedVersions) > 0:
+                        for v in deducedVersions[1:]:
+                            if v != deducedVersions[0]:
+                                mismatchedVersions.append(v)
+                        if len(mismatchedVersions) == 0:
+                            myVersion = deducedVersions[0]
+                if version:
+                    if myVersion != version:
+                        raise CLIError('{f1} version {v1} != {f2} version {v2}'.format(f1=f1, v1=version, f2=f, v2=myVersion))
+                else:
+                    version = myVersion
+                    f1 = f
 
         return version
 
+    def writeVersion(self, version: str):
+        """
+        Update files containing module versions.
+        """
+        # Update any build.sbt or build.sc file with the specified version.
+        dir = Path(self.path)
+        self.files = [f for f in dir.glob('build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
+        for f in self.files:
+            baseFilename = os.path.basename(f)
+            regexes = versionFiles[baseFilename]
+            versionTag = regexes['versionTag']
+            versionLineRegex = regexes['versionLineRegex']
+            inputName = str(f)
+            outputName = inputName + '.versioning'
+            w = Path(outputName)
+            update = False
+            with open(f, 'r') as input, open(w, 'w') as output:
+                for l in input:
+                    line = l.rstrip('\n')
+                    lm = versionLineRegex.match(line)
+                    if lm:
+                        prefix = lm.group('prefix')
+                        suffix = lm.group('suffix')
+                        line = prefix + version + suffix
+                        update = True
+                    print(line, file=output)
+            if update:
+                os.rename(inputName, inputName + '.bak')
+                os.rename(outputName, inputName)
+            else:
+                os.remove(outputName)
+
+
+
 def doWork(wc):
-    bumpMin(wc)
-
-def bumpMin(wc):
     version = wc.determineVersion()
-    print(version.releaseVersion())
-    print(version.snapshotVersion())
-    #    versionLineRegex = re.compile(r'''=\s*"(?P<major>(\d+\.\d+))((?P<minor>\d+)(((-(?P<releaseQualifier>)RC\d+))|((-(?P<snapshotQualifer>\d{6,6}))?-SNAPSHOT)))''')
-    #    versionLineRegex = re.compile(r'.+=\s*"(?P<major>(\d+\.\d+))((?P<minor>(\d+))(((-(?P<releaseQualifier>)(RC\d+))?|((-(?P<snapshotQualifer>(\d{6,6}))?-SNAPSHOT")))))')
-    # Find the local git repo from the path
-    versionLineRegex = re.compile(r'(?!scala)[Vv]ersion\s*:?=\s*"(?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT"))')
-
+    if wc.args.command == 'bump-min':
+        bumpedVersion = version.bumpMinor()
+        versionString =  bumpedVersion.releaseVersion() if wc.args.release else bumpedVersion.snapshotVersion()
+        print('o: %s, b:%s' % (version, versionString))
+        if wc.args.update:
+            wc.writeVersion(versionString)
+    elif wc.args.command == 'bump-maj':
+        bumpedVersion = version.bumpMajor()
+        versionString = bumpedVersion.releaseVersion() if wc.args.release else bumpedVersion.snapshotVersion()
+        print('o: %s, b:%s' % (version, versionString))
+        if wc.args.update:
+            wc.writeVersion(versionString)
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -188,10 +243,10 @@ USAGE
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
-        parser.add_argument('-p', '--snapshotQualifer', dest='snapshotQualifer', help='set snapshotQualifer (usually DDMMYY) for SNAPSHOT')
-        parser.add_argument('-s', '--releaseQualifier', dest='releaseQualifier', help='set releaseQualifier (usually RCn) for release')
-        parser.add_argument('-r', '--release', dest='release', help='set version (Z.Y.Z) for release')
-        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj', 'snapshot', 'release'], nargs=1)
+        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs='?', help='generate snapshot version')
+        parser.add_argument('-r', '--release', dest='release', action='store', nargs='?', help='generate release version')
+        parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
+        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj'])
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated', nargs='*')
 
         # Process arguments
