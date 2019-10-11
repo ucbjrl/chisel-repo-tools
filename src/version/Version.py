@@ -53,13 +53,13 @@ class CNVersion:
         return theString
 
     def bumpMajor(self) -> 'CNVersion':
-        res = copy.copy(self)
+        res = copy.deepcopy(self)
         res.theInts[1] += 1
         res.theInts[2] = 0
         return res
 
     def bumpMinor(self) -> 'CNVersion':
-        res = copy.copy(self)
+        res = copy.deepcopy(self)
         res.theInts[2] += 1
         return res
 
@@ -80,9 +80,6 @@ class CNVersion:
         self.theInts = [None] * CNVersion.nComponents
         aString = kwargs.get('aString', None)
         aVersion = kwargs.get('aVersion', None)
-        theInts = kwargs.get('theInts', None)
-        snapshotQualifer = kwargs.get('snapshotQualifier', None)
-        releaseQualifier = kwargs.get('releaseQualifier', None)
 
         if aString and aVersion:
             raise 'only one of string or an existing CNVersion should be supplied: %s, %s' % (aString, aVersion)
@@ -109,16 +106,6 @@ class CNVersion:
         for attribute in kwargs.keys():
             if attribute in self.__dict__.keys():
                 setattr(self, attribute, copy.deepcopy(kwargs.get(attribute)))
-
-        if theInts:
-            if len(theInts) != 3:
-                raise CLIError('a list of 3 ints should be supplied: "%s"' % (','.join([str(i) for i in theInts])))
-            for i in range(3):
-                self.theInts[i] = theInts[i]
-        if snapshotQualifer:
-            self.snapshotQualifer = snapshotQualifer
-        if releaseQualifier:
-            self.releaseQualifier = releaseQualifier
 
     def __eq__(self, other):
         """Overrides the default implementation"""
