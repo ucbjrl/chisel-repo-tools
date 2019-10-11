@@ -18,10 +18,15 @@ import sys
 import traceback
 import subprocess
 from pathlib import Path
-from argparse import ArgumentParser
+from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
 from version.Version import CNVersion
 from citSupport.monitorRepos import BaseRepo
+from yaml import load, dump
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 __all__ = []
 __version__ = 0.1
@@ -52,22 +57,65 @@ def sigterm(signum, frame):
     if signum == signal.SIGTERM:
         doExit = True
 
+class ScalaText:
+    commentREs = re.compile(r'(?P<line>//)|(?P<begin>/\*)|(?P<end>\*/)')
+
+    @staticmethod
+    def decomment(line: str, inComment: bool) -> (str, bool):
+        commentBegin = 0 if inComment else None
+        commentEnd = None
+        comments = []
+        for m in re.finditer(ScalaText.commentREs, line):
+            if m.group('line'):
+                if not inComment:
+                    commentBegin = m.start('line')
+                    break
+            elif m.group('begin'):
+                if not commentBegin:
+                    commentBegin = m.start('begin')
+                inComment = True
+            elif m.group('end'):
+                if inComment:
+                    commentEnd = m.end('end')
+                    comments.append((commentBegin, commentEnd))
+                    commentBegin = None
+                    commentEnd = None
+                    inComment = False
+
+        if commentBegin is not None and commentEnd is None:
+            commentEnd = len(line)
+            comments.append((commentBegin, commentEnd))
+        reversedComments = comments.reverse() if len(comments) > 1 else comments
+        for c in reversedComments:
+            line = line[:c[0]] + line[c[1]:]
+        return((line, inComment))
+
 versionFiles = {
     'build.sbt' : {
+        'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]version[[:space:]]*:=[[:space:]]*',
-        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$')
+        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$'),
+        'moduleNameRegex' : re.compile(r'^\s*name\s*:=\s*"(?P<moduleName>[^"]+)"')
     },
     'build.sc' : {
+        'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]def[[:space:]]+publishVersion[[:space:]]*=[[:space:]]*',
-        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$')
+        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$'),
+        'moduleNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<moduleName>[[:alnum:]_-\.]+)"')
     }
 }
 
 class WorkContext:
-    def __init__(self, args, path):
+    def __init__(self, args: str, versionConfig: dict, path: str):
         self.args = args
         self.path = path
+        self.module = None
+        for m in versionConfig.keys():
+            if versionConfig[m]['path'] == self.path:
+                self.module = m
         self.repo = BaseRepo(self.path)
+        self.versionConfig = versionConfig
+        self.versionConfigUpdated = False
         self.files = []
         self.version = None
 
@@ -106,7 +154,7 @@ class WorkContext:
                         break
         return vt
 
-    def determineVersion(self) -> CNVersion:
+    def determineVersion(self) -> (str, CNVersion):
         """
         Determine the version of a module.
         :return: an CNVersion object or None if the version can not be determined.
@@ -116,22 +164,36 @@ class WorkContext:
         line = None
         # If there is a build.sbt or build.sc file, we may be able to extract the version using sbt
         dir = Path(self.path)
-        self.files = [f for f in dir.glob('build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
+        self.files = [f for f in dir.glob('**/build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
         versionTag = None
+        possibleModuleNames = []
+        moduleName = None
         for f in self.files:
             baseFilename = os.path.basename(f)
-            regexes = versionFiles[baseFilename]
-            versionTag = regexes['versionTag']
-            versionLineRegex = regexes['versionLineRegex']
+            fileops = versionFiles[baseFilename]
+            versionTag = fileops['versionTag']
+            versionLineRegex = fileops['versionLineRegex']
+            decomment = fileops['decomment']
+            moduleRE = fileops['moduleNameRegex']
             myVersion = None
+            moduleName = None
             with open(f, 'r') as input:
+                inComment = False
                 for l in input:
-                    line = l.rstrip('\n')
+                    (line, inComment) = decomment(l.rstrip('\n'), inComment)
+                    mm = moduleRE.search(line)
+                    if mm:
+                        moduleName = mm.group('moduleName')
+                        possibleModuleNames.append(moduleName)
+                        if myVersion:
+                            break
+
                     lm = versionLineRegex.search(line)
                     if lm:
                         versionString = lm.group('version')
                         myVersion = CNVersion(aString=versionString)
-                        break
+                        if moduleName:
+                            break
             if myVersion:
                 print('{file}: {version} - {line}'.format(file=f, version=myVersion, line=line))
                 # If we don't have a minor version, try and deduce it from git tags.
@@ -159,7 +221,14 @@ class WorkContext:
                     version = myVersion
                     f1 = f
 
-        return version
+        if len(possibleModuleNames) > 0:
+            mismatchedModuleNames = []
+            for v in possibleModuleNames[1:]:
+                if v != possibleModuleNames[0]:
+                    mismatchedModuleNames.append(v)
+            if len(mismatchedModuleNames) == 0:
+                moduleName = possibleModuleNames[0]
+        return (moduleName, version)
 
     def writeVersion(self, version: str):
         """
@@ -170,16 +239,22 @@ class WorkContext:
         self.files = [f for f in dir.glob('build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
         for f in self.files:
             baseFilename = os.path.basename(f)
-            regexes = versionFiles[baseFilename]
-            versionTag = regexes['versionTag']
-            versionLineRegex = regexes['versionLineRegex']
+            fileops = versionFiles[baseFilename]
+            versionTag = fileops['versionTag']
+            versionLineRegex = fileops['versionLineRegex']
+            decomment = fileops['decomment']
             inputName = str(f)
             outputName = inputName + '.versioning'
             w = Path(outputName)
             update = False
+            inComment = False
             with open(f, 'r') as input, open(w, 'w') as output:
                 for l in input:
                     line = l.rstrip('\n')
+                    (test, inComment) = decomment(line, inComment)
+                    lm = versionLineRegex.match(test)
+                    if not lm:
+                        next()
                     lm = versionLineRegex.match(line)
                     if lm:
                         prefix = lm.group('prefix')
@@ -196,7 +271,8 @@ class WorkContext:
 
 
 def doWork(wc):
-    version = wc.determineVersion()
+    module = wc.module
+    version = wc.versionConfig[module]['version']
     if wc.args.command == 'bump-min':
         bumpedVersion = version.bumpMinor()
         versionString =  bumpedVersion.releaseVersion() if wc.args.release else bumpedVersion.snapshotVersion()
@@ -209,6 +285,13 @@ def doWork(wc):
         print('o: %s, b:%s' % (version, versionString))
         if wc.args.update:
             wc.writeVersion(versionString)
+    elif wc.args.command == 'verify':
+        (mModule, mVersion) = wc.determineVersion()
+        versionString =  mVersion.releaseVersion() if wc.args.release else mVersion.snapshotVersion()
+        if wc.versionConfig[module]['version'] != versionString:
+            print('verify: %s (%s) != %s' % (module, wc.versionConfig[module]['version'], versionString))
+            wc.versionConfig[module]['version'] = versionString
+            wc.versionConfigUpdated = True
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -241,13 +324,14 @@ USAGE
     try:
         # Setup argument parser
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
-        parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
-        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs='?', help='generate snapshot version')
+        parser.add_argument('-c', '--config', dest='config', action='store', help='config file containing all module versions', default='version.yml')
         parser.add_argument('-r', '--release', dest='release', action='store', nargs='?', help='generate release version')
+        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs='?', help='generate snapshot version')
         parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
-        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj'])
-        parser.add_argument(dest='paths', help='paths to search for files to be manipulated', nargs='*')
+        parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
+        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj', 'verify'])
+        parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
 
         # Process arguments
         args = parser.parse_args()
@@ -259,9 +343,42 @@ USAGE
 
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
-        for aPath in args.paths:
-            workContext = WorkContext(args, aPath)
+
+        # Load the version configuration
+        configFilename = args.config
+        versionConfigs = {}
+        configUpdated = False
+        if configFilename and os.path.exists(configFilename):
+            configInput = open(configFilename, 'r', encoding="utf-8")
+            versionConfigs = load(configInput, Loader=Loader)
+            configInput.close()
+
+        # Find those modules for which we don't have versions
+        needVersions = set(args.paths).difference(set(versionConfigs[module]['path'] for module in versionConfigs.keys()))
+        if len(needVersions) > 0:
+            print('No versions for %s: using heuristics' % ', '.join(needVersions))
+            for path in needVersions:
+                workContext = WorkContext(args, versionConfigs, path)
+                (module, aVersion) = workContext.determineVersion()
+                versionString = aVersion.releaseVersion() if workContext.args.release else aVersion.snapshotVersion()
+                versionConfigs[module] = {}
+                versionConfigs[module]['path'] = path
+                versionConfigs[module]['version'] = versionString
+                configUpdated = True
+
+        for path in args.paths:
+            workContext = WorkContext(args, versionConfigs, path)
             doWork(workContext)
+            configUpdated |= workContext.versionConfigUpdated
+
+        if args.update and configUpdated:
+            outputFilename = configFilename + '.versioning'
+            configOutput = open(outputFilename, 'w', encoding="utf-8")
+            dump(versionConfigs, configOutput)
+            configOutput.close()
+            if os.path.exists(configFilename):
+                os.rename(configFilename, configFilename + '.bak')
+            os.rename(outputFilename, configFilename)
         return 0
 
     except KeyboardInterrupt:
