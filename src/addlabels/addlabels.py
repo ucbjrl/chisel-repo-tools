@@ -1,5 +1,3 @@
-#!/usr/local/bin/python2.7
-# encoding: utf-8
 '''
 addlabels.addlabels -- add labels to GitHub pull request
 
@@ -14,7 +12,7 @@ It defines classes_and_methods
 @license:    BSD
 
 @contact:    ucbjrl@berkeley.edu
-@deffield    updated: Updated
+@deffield    updated: 2019-10-14
 '''
 
 import sys
@@ -28,7 +26,7 @@ from bs4 import BeautifulSoup
 __all__ = []
 __version__ = 0.1
 __date__ = '2017-12-08'
-__updated__ = '2017-12-08'
+__updated__ = '2019-10-14'
 
 DEBUG = 1
 TESTRUN = 0
@@ -68,12 +66,12 @@ def addLabel(repoPath, pullRequestNumber):
     title = issue.title if issue.title and issue.title != '' else body
     soup = BeautifulSoup(issue.body_html, 'html.parser')
         
-    print str(pullRequestNumber) + ': ' +  ', '.join([x.name for x in issue.labels()])
-    print issue.body_html
+    print(str(pullRequestNumber) + ': ' +  ', '.join([x.name for x in issue.labels()]))
+    print(issue.body_html)
     for checkbox in soup.find_all('input', checked=True):
         category = checkbox.find_previous('p').text.strip()
         selector = checkbox.text.strip()
-        print ChiselLabels.label(category, selector)
+        print(ChiselLabels.label(category, selector))
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -124,7 +122,7 @@ USAGE
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return 0
-    except Exception, e:
+    except Exception as e:
         if DEBUG or TESTRUN:
             raise(e)
         indent = len(program_name) * " "
