@@ -85,7 +85,7 @@ def doWork(wc, verbose):
 
     # Connect to the database
     client = MongoClient()
-    db = client['git' + repo.name]
+    db = client['git-' + repo.name]
     issueDB = db['issues']
     eventDB = db['issue_events']
     commitDB = db['pr_commits']
