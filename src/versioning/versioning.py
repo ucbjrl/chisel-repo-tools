@@ -17,6 +17,7 @@ import signal
 import sys
 import traceback
 import subprocess
+import itertools
 from pathlib import Path
 from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
@@ -41,7 +42,7 @@ class CLIError(Exception):
     '''Generic exception to raise and log different fatal errors.'''
     def __init__(self, msg):
         super(CLIError).__init__(type(self))
-        self.msg = "E: %s" % msg
+        self.msg = msg
     def __str__(self):
         return self.msg
     def __unicode__(self):
@@ -101,27 +102,24 @@ versionFiles = {
         'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]def[[:space:]]+publishVersion[[:space:]]*=[[:space:]]*',
         'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$'),
-        'moduleNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<moduleName>[[:alnum:]_-\.]+)"')
+        'moduleNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<moduleName>[^"]+)"')
     }
 }
 
 class WorkContext:
-    def __init__(self, args: str, versionConfig: dict, path: str):
+    def __init__(self, args: str, versionConfig: dict, path: str, findMinor: bool):
         self.args = args
         self.path = path
-        self.module = None
-        for m in versionConfig.keys():
-            if versionConfig[m]['path'] == self.path:
-                self.module = m
         self.repo = BaseRepo(self.path)
         self.versionConfig = versionConfig
         self.versionConfigUpdated = False
         self.files = []
+        self.findMinor = findMinor
         self.version = None
 
-    def currentMinorVersionFromGitTags(self, major: str) -> CNVersion:
+    def currentMinorVersionFromGitTags(self, major: str, path: str) -> CNVersion:
         vt = None
-        proc = subprocess.run(['git', 'tag', '-l'], cwd=self.path, capture_output=True, check=True, text=True)
+        proc = subprocess.run(['git', 'tag', '-l'], cwd=path, capture_output=True, check=True, text=True)
         if proc.returncode == 0:
             majorMatch = re.compile(re.escape(major) + r'\.(?P<minor>(\d+))(-|\b)')
             tags = proc.stdout.split('\n')
@@ -132,7 +130,7 @@ class WorkContext:
                     break
         return vt
 
-    def currentMinorVersionFromGitChangelog(self, major: str, baseFileName: str) -> CNVersion:
+    def currentMinorVersionFromGitChangelog(self, major: str, path: str, baseFileName: str) -> CNVersion:
         vt = None
         regexes = versionFiles[baseFileName]
         versionTag = regexes['versionTag']
@@ -154,37 +152,41 @@ class WorkContext:
                         break
         return vt
 
-    def determineVersion(self) -> (str, CNVersion):
+    def getVersions(self) -> dict:
         """
-        Determine the version of a module.
-        :return: an CNVersion object or None if the version can not be determined.
+        Determine the version(s) of a module (and sub-modules).
+        :return: a dictionary containing module names and versions for any modules found beneath the specified path.
         """
-        version = None
-        f1 = None
         line = None
         # If there is a build.sbt or build.sc file, we may be able to extract the version using sbt
         dir = Path(self.path)
         self.files = [f for f in dir.glob('**/build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
-        versionTag = None
-        possibleModuleNames = []
-        moduleName = None
+        modules = {}
         for f in self.files:
             baseFilename = os.path.basename(f)
+            modulePath = os.path.dirname(f)
+            (relRoot, moduleDir) = os.path.split(modulePath)
+            if moduleDir == 'sbt' and self.path == 'rocket-chip':
+                continue
+            if not modulePath in modules.keys():
+                modules[modulePath] = {}
+                modules[modulePath]['paths'] = {}
+            filePath = os.path.normpath(f)
+            modules[modulePath]['paths'][filePath] = {}
             fileops = versionFiles[baseFilename]
             versionTag = fileops['versionTag']
             versionLineRegex = fileops['versionLineRegex']
             decomment = fileops['decomment']
             moduleRE = fileops['moduleNameRegex']
             myVersion = None
-            moduleName = None
+            myModuleName = None
             with open(f, 'r') as input:
                 inComment = False
                 for l in input:
                     (line, inComment) = decomment(l.rstrip('\n'), inComment)
                     mm = moduleRE.search(line)
                     if mm:
-                        moduleName = mm.group('moduleName')
-                        possibleModuleNames.append(moduleName)
+                        myModuleName = mm.group('moduleName')
                         if myVersion:
                             break
 
@@ -192,20 +194,38 @@ class WorkContext:
                     if lm:
                         versionString = lm.group('version')
                         myVersion = CNVersion(aString=versionString)
-                        if moduleName:
+                        if myModuleName:
                             break
-            if myVersion:
-                print('{file}: {version} - {line}'.format(file=f, version=myVersion, line=line))
-                # If we don't have a minor version, try and deduce it from git tags.
-                if myVersion.theInts[2] is None:
+
+            modules[modulePath]['paths'][filePath]['version'] = myVersion
+            modules[modulePath]['paths'][filePath]['moduleName'] = myModuleName
+
+        return (modules)
+
+    def determineVersion(self, modules: dict) -> dict:
+        """
+        Determine the version of a module.
+        :return: a dictionary containing module names and versions for any modules found beneath the specified path.
+        """
+        for modulePath, module in modules.items():
+
+            possibleModuleNames = []
+            possibleVersions = []
+            for filePath, fileVersion in module['paths'].items():
+                baseFilename = os.path.basename(filePath)
+                modPath = os.path.dirname(filePath)
+                (relRoot, moduleDir) = os.path.split(modPath)
+                myVersion = fileVersion['version']
+                # If we don't have a minor version and we need it, try and deduce it from git tags.
+                if myVersion.theInts[2] is None and self.findMinor:
                     deducedVersions = []
                     mismatchedVersions = []
                     major = '.'.join([str(i) for i in myVersion.theInts[CNVersion.MAJOR_SLICE]])
                     if self.repo:
-                        vt = self.currentMinorVersionFromGitTags(major)
+                        vt = self.currentMinorVersionFromGitTags(major, modPath)
                         if vt:
                             deducedVersions.append(CNVersion(aVersion=myVersion, theInts=vt.theInts))
-                        vt = self.currentMinorVersionFromGitChangelog(major, baseFilename)
+                        vt = self.currentMinorVersionFromGitChangelog(major, modPath, baseFilename)
                         if vt:
                             deducedVersions.append(CNVersion(aVersion=myVersion, theInts=vt.theInts))
                     if len(deducedVersions) > 0:
@@ -214,33 +234,45 @@ class WorkContext:
                                 mismatchedVersions.append(v)
                         if len(mismatchedVersions) == 0:
                             myVersion = deducedVersions[0]
-                if version:
-                    if myVersion != version:
-                        raise CLIError('{f1} version {v1} != {f2} version {v2}'.format(f1=f1, v1=version, f2=f, v2=myVersion))
-                else:
-                    version = myVersion
-                    f1 = f
+                possibleVersions.append(myVersion)
 
-        if len(possibleModuleNames) > 0:
-            mismatchedModuleNames = []
-            for v in possibleModuleNames[1:]:
-                if v != possibleModuleNames[0]:
-                    mismatchedModuleNames.append(v)
-            if len(mismatchedModuleNames) == 0:
-                moduleName = possibleModuleNames[0]
-        return (moduleName, version)
+                myModuleName = fileVersion['moduleName']
+                if not myModuleName:
+                    myModuleName = 'rocketchip' if moduleDir == 'rocket-chip' else moduleDir
 
-    def writeVersion(self, version: str):
+                possibleModuleNames.append(myModuleName)
+
+            module['moduleName'] = None
+            if len(possibleModuleNames) > 0:
+                mismatchedModuleNames = []
+                for v in possibleModuleNames[1:]:
+                    if v != possibleModuleNames[0]:
+                        mismatchedModuleNames.append(v)
+                if len(mismatchedModuleNames) == 0:
+                    module['moduleName'] = possibleModuleNames[0]
+
+            module['version'] = None
+            if len(possibleVersions) > 0:
+                mismatchedVersions = []
+                for v in possibleVersions[1:]:
+                    if v != possibleVersions[0]:
+                        mismatchedVersions.append(v)
+
+                if len(mismatchedVersions) == 0:
+                    module['version'] = possibleVersions[0]
+
+        return (modules)
+
+    def writeVersion(self, moduleDir: str, module: dict, version: CNVersion):
         """
         Update files containing module versions.
         """
+        versionStr = version.releaseVersion() if version.isRelease() else version.snapshotVersion()
         # Update any build.sbt or build.sc file with the specified version.
-        dir = Path(self.path)
-        self.files = [f for f in dir.glob('build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
-        for f in self.files:
+        for f, fv in module['paths'].items():
+            fv['version'] = version
             baseFilename = os.path.basename(f)
             fileops = versionFiles[baseFilename]
-            versionTag = fileops['versionTag']
             versionLineRegex = fileops['versionLineRegex']
             decomment = fileops['decomment']
             inputName = str(f)
@@ -252,46 +284,80 @@ class WorkContext:
                 for l in input:
                     line = l.rstrip('\n')
                     (test, inComment) = decomment(line, inComment)
+                    # Do we have a valid version setting in the uncommented line?
                     lm = versionLineRegex.match(test)
-                    if not lm:
-                        next()
-                    lm = versionLineRegex.match(line)
                     if lm:
-                        prefix = lm.group('prefix')
-                        suffix = lm.group('suffix')
-                        line = prefix + version + suffix
-                        update = True
+                        lm = versionLineRegex.match(line)
+                        if lm:
+                            oldVersion = CNVersion(aString=lm.group('version'))
+                            if oldVersion != version:
+                                prefix = lm.group('prefix')
+                                suffix = lm.group('suffix')
+                                line = prefix + versionStr + suffix
+                                update = True
                     print(line, file=output)
             if update:
                 os.rename(inputName, inputName + '.bak')
                 os.rename(outputName, inputName)
             else:
                 os.remove(outputName)
+            self.versionConfigUpdated |= update
+        if self.versionConfig[moduleDir]['version'] != version:
+            self.versionConfig[moduleDir]['version'] = version
+            self.versionConfigUpdated = True
 
 
 
 def doWork(wc):
-    module = wc.module
-    version = wc.versionConfig[module]['version']
-    if wc.args.command == 'bump-min':
-        bumpedVersion = version.bumpMinor()
-        versionString =  bumpedVersion.releaseVersion() if wc.args.release else bumpedVersion.snapshotVersion()
-        print('o: %s, b:%s' % (version, versionString))
-        if wc.args.update:
-            wc.writeVersion(versionString)
-    elif wc.args.command == 'bump-maj':
-        bumpedVersion = version.bumpMajor()
-        versionString = bumpedVersion.releaseVersion() if wc.args.release else bumpedVersion.snapshotVersion()
-        print('o: %s, b:%s' % (version, versionString))
-        if wc.args.update:
-            wc.writeVersion(versionString)
-    elif wc.args.command == 'verify':
-        (mModule, mVersion) = wc.determineVersion()
-        versionString =  mVersion.releaseVersion() if wc.args.release else mVersion.snapshotVersion()
-        if wc.versionConfig[module]['version'] != versionString:
-            print('verify: %s (%s) != %s' % (module, wc.versionConfig[module]['version'], versionString))
-            wc.versionConfig[module]['version'] = versionString
-            wc.versionConfigUpdated = True
+    failed = [n for n, m in wc.versionConfig.items() if m['version'] is None]
+
+    if len(failed) > 0:
+        raise CLIError("Couldn't determine version for %s" % (', '.join(failed)))
+
+    if wc.args.command == 'verify':
+        modules = wc.determineVersion(wc.getVersions())
+        for modulePath, module in modules.items():
+            mName = module['moduleName']
+            if not mName:
+                print("Couldn't determine module name for %s" % (modulePath), file=sys.stderr)
+
+            mVersion = module['version']
+            if not mVersion:
+                print("Couldn't determine module version for %s" % (modulePath), file=sys.stderr)
+
+            if mName and mVersion:
+                cModule = {}
+                if modulePath not in wc.versionConfig.keys():
+                    cModule['moduleName'] = mName
+                    cModule['version'] = mVersion
+                    cModule['paths'] = module['paths']
+                    wc.versionConfig[modulePath] = cModule
+                else:
+                    cModule = wc.versionConfig[modulePath]
+                    if cModule['version'] != mVersion or cModule['moduleName'] != mName:
+                        print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['moduleName'],  cModule['version'], mName, mVersion))
+                        cModule['moduleName'] = mName
+                        cModule['version'] = mVersion
+                        cModule['paths'] = module['paths']
+                        wc.versionConfigUpdated = True
+
+    else:
+        moduleDir = wc.path
+        module = wc.versionConfig[moduleDir]
+        version = module['version']
+
+        if wc.args.command == 'bump-min':
+            bumpedVersion = version.bumpMinor()
+            versionString =  bumpedVersion.releaseVersion()
+            print('%s: %s, b:%s' % (moduleDir, version, versionString))
+            if wc.args.update:
+                wc.writeVersion(moduleDir, module, bumpedVersion)
+        elif wc.args.command == 'bump-maj':
+            bumpedVersion = version.bumpMajor()
+            versionString = bumpedVersion.releaseVersion() if version.isRelease() else bumpedVersion.snapshotVersion()
+            print('%s: %s, b:%s' % (moduleDir, version, versionString))
+            if wc.args.update:
+                wc.writeVersion(moduleDir, module, bumpedVersion)
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -319,6 +385,10 @@ def main(argv=None): # IGNORE:C0111
 
 USAGE
 ''' % (program_shortdesc, str(__date__))
+    minorMatch = re.compile(r'')
+    def hasMinor(versionString: str) -> bool:
+        m = CNVersion.versionRegex.match(versionString)
+        return True if m and m.group('minor') is not None else False
 
     global continueOnError
     try:
@@ -326,11 +396,12 @@ USAGE
         parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument('-c', '--config', dest='config', action='store', help='config file containing all module versions', default='version.yml')
+        parser.add_argument('-m', '--minor', dest='findMinor', action='store_true', help='determine minor version if it\'s not explicit')
         parser.add_argument('-r', '--release', dest='release', action='store', nargs='?', help='generate release version')
         parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs='?', help='generate snapshot version')
         parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
-        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj', 'verify'])
+        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj', 'verify', 'set'])
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
 
         # Process arguments
@@ -344,6 +415,9 @@ USAGE
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
 
+        if args.release and args.snapshot:
+            raise CLIError("Can't specify both release and snapshot")
+
         # Load the version configuration
         configFilename = args.config
         versionConfigs = {}
@@ -353,23 +427,54 @@ USAGE
             versionConfigs = load(configInput, Loader=Loader)
             configInput.close()
 
-        # Find those modules for which we don't have versions
-        needVersions = set(args.paths).difference(set(versionConfigs[module]['path'] for module in versionConfigs.keys()))
+        # Find those modules for which we don't have any information
+        needVersions = set(args.paths).difference(set(versionConfigs.keys()))
+        findMinor = args.findMinor
+        if args.command == 'bump-min' or args.command == 'bump-max':
+            if args.release or args.snapshot:
+                rOrs = args.release if args.release else args.snapshot
+                raise CLIError("%s and %s is ambiguous. Please specify one or the other." % (rOrs, args.command))
+            if not args.update:
+                print("-u not specified - changes won't be made", file=sys.stderr)
+            missingMinors = [md for md, m in versionConfigs.items() if md in args.paths and not m['version'].hasMinor()]
+            if len(missingMinors):
+                findMinor = True
+                needVersions = needVersions.union(set(missingMinors))
+
         if len(needVersions) > 0:
-            print('No versions for %s: using heuristics' % ', '.join(needVersions))
+            prefix = 'Incomplete' if findMinor else 'No'
+            print('%s versions for %s: using heuristics' % (prefix, ', '.join(needVersions)))
             for path in needVersions:
-                workContext = WorkContext(args, versionConfigs, path)
-                (module, aVersion) = workContext.determineVersion()
-                versionString = aVersion.releaseVersion() if workContext.args.release else aVersion.snapshotVersion()
-                versionConfigs[module] = {}
-                versionConfigs[module]['path'] = path
-                versionConfigs[module]['version'] = versionString
-                configUpdated = True
+                workContext = WorkContext(args, versionConfigs, path, findMinor)
+                modules = workContext.determineVersion(workContext.getVersions())
+                for modulePath, module in modules.items():
+                    mName = module['moduleName']
+                    mVersion = module['version']
+                    mPaths = module['paths']
+                    newModule = {}
+                    if modulePath not in versionConfigs.keys():
+                        versionConfigs[modulePath] = newModule
+                    else:
+                        newModule = versionConfigs[modulePath]
+                    newModule['moduleName'] = mName
+                    newModule['version'] = mVersion
+                    newModule['paths'] = mPaths
+                    configUpdated = True
+
 
         for path in args.paths:
-            workContext = WorkContext(args, versionConfigs, path)
+            workContext = WorkContext(args, versionConfigs, path, findMinor)
             doWork(workContext)
             configUpdated |= workContext.versionConfigUpdated
+
+        modules = versionConfigs
+        moduleNames = set([m['moduleName'] for md, m in modules.items() if md in args.paths])
+        for mName in moduleNames:
+            vl = [v['version'] for v in [d for dl in [list(pl.values()) for pl in [m['paths'] for m in modules.values() if m['moduleName'] == mName]] for d in dl]]
+            possibleVersions = set(vl)
+            if len(possibleVersions) > 1:
+                ambiguousModuleDirs = [(md, v['version'], f) for md, m in modules.items() if m['moduleName'] == mName for f, v in list(m['paths'].items()) if v['version'] in possibleVersions]
+                print("Ambigous versions for %s: %s" % (mName, ', '.join([("%s: %s - %s" % (a[0], a[1], a[2])) for a in ambiguousModuleDirs])))
 
         if args.update and configUpdated:
             outputFilename = configFilename + '.versioning'
@@ -384,6 +489,9 @@ USAGE
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return 0
+    except CLIError as e:
+        sys.stderr.write(program_name + ": " + e.msg + "\n")
+        sys.exit(1)
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print (''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
@@ -391,7 +499,7 @@ USAGE
             indent = len(program_name) * " "
             sys.stderr.write(program_name + ": " + repr(e) + "\n")
             sys.stderr.write(indent + "  for help use --help")
-        return 2
+        sys.exit(2)
 
 if __name__ == "__main__":
     if DEBUG:
