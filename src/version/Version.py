@@ -53,15 +53,15 @@ class CNVersion:
         return theString
 
     def bumpMajor(self) -> 'CNVersion':
-        res = copy.deepcopy(self)
-        res.theInts[1] += 1
-        res.theInts[2] = 0
-        return res
+        someInts = list(self.theInts)
+        someInts[1] += 1
+        someInts[2] = 0
+        return CNVersion(aVersion=self, theInts=someInts)
 
     def bumpMinor(self) -> 'CNVersion':
-        res = copy.deepcopy(self)
-        res.theInts[2] += 1
-        return res
+        someInts = list(self.theInts)
+        someInts[2] += 1
+        return CNVersion(aVersion=self, theInts=someInts)
 
     def releaseVersion(self) -> str:
         s = CNVersion.valsToString(self.theInts)
@@ -77,7 +77,7 @@ class CNVersion:
         # Initialize defaults
         self.snapshotQualifer = None
         self.releaseQualifier = None
-        self.theInts = [None] * CNVersion.nComponents
+        self.theInts = tuple([None] * CNVersion.nComponents)
         aString = kwargs.get('aString', None)
         aVersion = kwargs.get('aVersion', None)
 
@@ -91,21 +91,35 @@ class CNVersion:
                     raise CLIError('couldn\'t find major version: "%s"' % (aString))
                 major = versionDict.get('major')
                 m = major.split('.')
+                someInts = [None] * CNVersion.nComponents
                 for i in range(2):
-                    self.theInts[i] = int(m[i])
+                    someInts[i] = int(m[i])
                 minor = versionDict.get('minor')
-                self.theInts[2] = int(minor) if minor else None
+                someInts[2] = int(minor) if minor else None
+                self.theInts = tuple(someInts)
                 self.snapshotQualifer = versionDict.get('snapshotQualifer')
                 self.releaseQualifier = versionDict.get('releaseQualifier')
             else:
                 raise CLIError('couldn\'t parse string as a version: "%s"' % (aString))
         elif aVersion:
             for attribute in self.__dict__.keys():
-                setattr(self, attribute, copy.deepcopy(getattr(aVersion, attribute, None)))
+                val = copy.deepcopy(getattr(aVersion, attribute, None))
+                if isinstance(val, list):
+                    val = tuple(val)
+                setattr(self, attribute, val)
 
         for attribute in kwargs.keys():
             if attribute in self.__dict__.keys():
-                setattr(self, attribute, copy.deepcopy(kwargs.get(attribute)))
+                val = copy.deepcopy(kwargs.get(attribute))
+                if isinstance(val, list):
+                    val = tuple(val)
+                setattr(self, attribute, val)
+
+    def hasMinor(self) -> bool:
+        return self.theInts[2] is not None
+
+    def isRelease(self) -> bool:
+        return self.theInts[2] is not None
 
     def __eq__(self, other):
         """Overrides the default implementation"""
@@ -129,10 +143,11 @@ class CNVersion:
 
     def __repr__(self) -> str:
         s = CNVersion.valsToString(self.theInts)
-        s += ( '-' + self.releaseQualifier) if self.releaseQualifier else ''
-        s += (( '-' + self.snapshotQualifer) if self.snapshotQualifer else '') + '-SNAPSHOT'
+        if self.isRelease():
+            s += ( '-' + self.releaseQualifier) if self.releaseQualifier else ''
+        else:
+            s += (( '-' + self.snapshotQualifer) if self.snapshotQualifer else '') + '-SNAPSHOT'
         return s
-
 
 def main(argv=None): # IGNORE:C0111
 
