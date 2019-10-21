@@ -4,6 +4,7 @@ Created on Jul 3, 2014
 @author: jrl
 '''
 import os
+import sys
 from urllib.parse import urlparse
 from git import Repo
 from github3 import login, GitHubError
@@ -41,14 +42,19 @@ class BaseRepo():
             # If a specific branch name is supplied, use it.
             if branch == "":
                 # Otherwise, use the current head.
-                branch = repo.head.ref.name
-            # Save the remote tracking branch so we can filter the appropriate PushEvents
-            self.branch = branch
-            trackingbranch = repo.heads[branch].tracking_branch()
-            if trackingbranch:
-                self.trackingbranch = trackingbranch.remote_head
-            else:
-                fail('no tracking branch for %s:%s' % (gitrepo, self.branch))
+                try:
+                    branch = repo.head.ref.name
+
+                    # Save the remote tracking branch so we can filter the appropriate PushEvents
+                    self.branch = branch
+                    trackingbranch = repo.heads[branch].tracking_branch()
+                    if trackingbranch:
+                        self.trackingbranch = trackingbranch.remote_head
+                    else:
+                        print('no tracking branch for %s:%s' % (gitrepo, self.branch), file=sys.stderr)
+                        self.trackingbranch = None
+                except TypeError as e:
+                    branch = None
             remoteUrl = repo.remotes.origin.url
             self.repo = repo
 
