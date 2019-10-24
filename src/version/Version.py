@@ -17,7 +17,8 @@ import re
 import signal
 import traceback
 import copy
-from typing import List
+from typing import Tuple
+from dataclasses import dataclass
 
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
@@ -41,14 +42,16 @@ class CLIError(Exception):
     def __unicode__(self):
         return self.msg
 
+# CNVersion objects are immutable.
+@dataclass(frozen=True)
 class CNVersion:
     nComponents = 3
     MAJOR_SLICE = slice(2)
     MINOR_SLICE = slice(2, nComponents)
-    versionRegex = re.compile(r'"?(?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)?((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT)?)"?')
+    versionRegex = re.compile(r'(?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)?((-(?P<snapshotQualifier>(\d{6,8})))?-SNAPSHOT)?)')
 
     @staticmethod
-    def valsToString(theInts:List[int]) -> str:
+    def valsToString(theInts:Tuple[int]) -> str:
         theString = '.'.join([str(v) for v in theInts if v is not None])
         return theString
 
@@ -70,14 +73,14 @@ class CNVersion:
 
     def snapshotVersion(self) -> str:
         s = CNVersion.valsToString(self.theInts[CNVersion.MAJOR_SLICE])
-        s += (( '-' + self.snapshotQualifer) if self.snapshotQualifer else '') + '-SNAPSHOT'
+        s += (( '-' + self.snapshotQualifier) if self.snapshotQualifier else '') + '-SNAPSHOT'
         return s
 
     def __init__(self, **kwargs):
         # Initialize defaults
-        self.snapshotQualifer = None
-        self.releaseQualifier = None
-        self.theInts = tuple([None] * CNVersion.nComponents)
+        object.__setattr__(self, 'snapshotQualifier', None)
+        object.__setattr__(self, 'releaseQualifier', None)
+        object.__setattr__(self, 'theInts', tuple([None] * CNVersion.nComponents))
         aString = kwargs.get('aString', None)
         aVersion = kwargs.get('aVersion', None)
 
@@ -92,13 +95,13 @@ class CNVersion:
                 major = versionDict.get('major')
                 m = major.split('.')
                 someInts = [None] * CNVersion.nComponents
-                for i in range(2):
+                for i in range(CNVersion.nComponents - 1):
                     someInts[i] = int(m[i])
                 minor = versionDict.get('minor')
                 someInts[2] = int(minor) if minor else None
-                self.theInts = tuple(someInts)
-                self.snapshotQualifer = versionDict.get('snapshotQualifer')
-                self.releaseQualifier = versionDict.get('releaseQualifier')
+                object.__setattr__(self, 'theInts', tuple(someInts))
+                object.__setattr__(self, 'snapshotQualifier', versionDict.get('snapshotQualifier'))
+                object.__setattr__(self, 'releaseQualifier', versionDict.get('releaseQualifier'))
             else:
                 raise CLIError('couldn\'t parse string as a version: "%s"' % (aString))
         elif aVersion:
@@ -106,20 +109,20 @@ class CNVersion:
                 val = copy.deepcopy(getattr(aVersion, attribute, None))
                 if isinstance(val, list):
                     val = tuple(val)
-                setattr(self, attribute, val)
+                object.__setattr__(self, attribute, val)
 
         for attribute in kwargs.keys():
             if attribute in self.__dict__.keys():
                 val = copy.deepcopy(kwargs.get(attribute))
                 if isinstance(val, list):
                     val = tuple(val)
-                setattr(self, attribute, val)
-
+                object.__setattr__(self, attribute, val)
+        
     def hasMinor(self) -> bool:
         return self.theInts[2] is not None
 
     def isRelease(self) -> bool:
-        return self.theInts[2] is not None
+        return self.theInts[2] is not None and self.snapshotQualifier is None
 
     def __eq__(self, other):
         """Overrides the default implementation"""
@@ -130,7 +133,7 @@ class CNVersion:
                 if not equal:
                     break
             if equal:
-                equal &= self.snapshotQualifer == other.snapshotQualifer
+                equal &= self.snapshotQualifier == other.snapshotQualifier
             if equal:
                 equal &= self.releaseQualifier == other.releaseQualifier
             return equal
@@ -146,7 +149,7 @@ class CNVersion:
         if self.isRelease():
             s += ( '-' + self.releaseQualifier) if self.releaseQualifier else ''
         else:
-            s += (( '-' + self.snapshotQualifer) if self.snapshotQualifer else '') + '-SNAPSHOT'
+            s += (( '-' + self.snapshotQualifier) if self.snapshotQualifier else '') + '-SNAPSHOT'
         return s
 
 def main(argv=None): # IGNORE:C0111

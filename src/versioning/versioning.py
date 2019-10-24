@@ -91,18 +91,33 @@ class ScalaText:
             line = line[:c[0]] + line[c[1]:]
         return((line, inComment))
 
+mapRegex = {
+    'begin' : re.compile(r'\bval defaultVersions = Map\('),
+#    'entry' : re.compile(r'(?P<prefix>([^"]*"(?P<moduleName>([[:alnum:]_-]+))"\s*->\s*"))' + CNVersion.versionRegex.pattern + '(?P<suffix>(".*))$'),
+#    'entry' : re.compile(r'(?P<prefix>([^"]*)")(?P<moduleName>([\w-]+))"\s*->\s*"(?P<version>([\w-]+))(?P<suffix>(".*))$'),
+#    'entry' : re.compile(r'(?P<prefix>(\s*"(?P<moduleName>([\w-]+))"\s*->\s*"))(?P<version>([\w-]+))(?P<suffix>(".*))$'),
+    'entry' : re.compile(r'(?P<prefix>(\s*"(?P<moduleName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
+    'end' : re.compile(r'\)')
+}
+
 versionFiles = {
     'build.sbt' : {
         'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]version[[:space:]]*:=[[:space:]]*',
-        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$'),
-        'moduleNameRegex' : re.compile(r'^\s*name\s*:=\s*"(?P<moduleName>[^"]+)"')
+        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>(' + CNVersion.versionRegex.pattern + r'))(?P<suffix>".*)$'),
+        'moduleNameRegex' : re.compile(r'^\s*name\s*:=\s*"(?P<moduleName>[^"]+)"'),
+        'mapBeginRegex' : mapRegex['begin'],
+        'mapEntryRegex' : mapRegex['entry'],
+        'mapEndRegex' : mapRegex['end']
     },
     'build.sc' : {
         'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]def[[:space:]]+publishVersion[[:space:]]*=[[:space:]]*',
-        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>((?P<major>(\d+\.\d+))((\.(?P<minor>(\d+))(-(?P<releaseQualifier>(RC\d+)))?)|((-(?P<snapshotQualifer>(\d{6,6})))?-SNAPSHOT))))(?P<suffix>".*)$'),
-        'moduleNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<moduleName>[^"]+)"')
+        'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>(' + CNVersion.versionRegex.pattern + r'))(?P<suffix>".*)$'),
+        'moduleNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<moduleName>[^"]+)"'),
+        'mapBeginRegex' : mapRegex['begin'],
+        'mapEntryRegex' : mapRegex['entry'],
+        'mapEndRegex' : mapRegex['end']
     }
 }
 
@@ -116,6 +131,7 @@ class WorkContext:
         self.files = []
         self.findMinor = findMinor
         self.version = None
+        self.moduleVersionMap = None
 
     def currentMinorVersionFromGitTags(self, major: str, path: str) -> CNVersion:
         vt = None
@@ -274,16 +290,46 @@ class WorkContext:
             baseFilename = os.path.basename(f)
             fileops = versionFiles[baseFilename]
             versionLineRegex = fileops['versionLineRegex']
+            mapBeginRegex = fileops['mapBeginRegex']
+            mapEntryRegex = fileops['mapEntryRegex']
+            mapEndRegex = fileops['mapEndRegex']
             decomment = fileops['decomment']
             inputName = str(f)
             outputName = inputName + '.versioning'
             w = Path(outputName)
             update = False
             inComment = False
+            inMap = False
             with open(f, 'r') as input, open(w, 'w') as output:
                 for l in input:
                     line = l.rstrip('\n')
                     (test, inComment) = decomment(line, inComment)
+                    # Do we have a version map in the uncommented line?
+                    mm = None
+                    if not inMap:
+                        mm = mapBeginRegex.match(test)
+                        if mm:
+                            inMap = True
+                    if inMap:
+                        mm = mapEntryRegex.search(test)
+                        if mm:
+                            mm = mapEntryRegex.search(line)
+                            if mm:
+                                moduleName = mm.group('moduleName')
+                                if moduleName not in self.moduleVersionMap:
+                                    print("%s not in moduleVersionMap (%s)" % (moduleName, ", ".join(self.moduleVersionMap.keys())))
+                                else:
+                                    newVersion = self.moduleVersionMap[moduleName]
+                                    oldVersion = mm.group('version')
+                                    if oldVersion != newVersion:
+                                        prefix = mm.group('prefix')
+                                        suffix = mm.group('suffix')
+                                        line = prefix + newVersion + suffix
+                                        update = True
+                        mm = mapEndRegex.search(test)
+                        if mm:
+                            inMap = False
+
                     # Do we have a valid version setting in the uncommented line?
                     lm = versionLineRegex.match(test)
                     if lm:
@@ -296,7 +342,7 @@ class WorkContext:
                                 line = prefix + versionStr + suffix
                                 update = True
                     print(line, file=output)
-            if update:
+            if update and self.args.update:
                 os.rename(inputName, inputName + '.bak')
                 os.rename(outputName, inputName)
             else:
@@ -346,18 +392,22 @@ def doWork(wc):
         module = wc.versionConfig[moduleDir]
         version = module['version']
 
+        setVersion = None
+        action = 'set' if wc.args.update else '(would set)'
         if wc.args.command == 'bump-min':
-            bumpedVersion = version.bumpMinor()
-            versionString =  bumpedVersion.releaseVersion()
-            print('%s: %s, b:%s' % (moduleDir, version, versionString))
-            if wc.args.update:
-                wc.writeVersion(moduleDir, module, bumpedVersion)
+            setVersion = version.bumpMinor()
         elif wc.args.command == 'bump-maj':
-            bumpedVersion = version.bumpMajor()
-            versionString = bumpedVersion.releaseVersion() if version.isRelease() else bumpedVersion.snapshotVersion()
-            print('%s: %s, b:%s' % (moduleDir, version, versionString))
-            if wc.args.update:
-                wc.writeVersion(moduleDir, module, bumpedVersion)
+            setVersion = version.bumpMajor()
+        elif wc.args.command == 'set':
+            if wc.args.release:
+                setVersion = CNVersion(aVersion=version, releaseQualifier=wc.args.release)
+            elif wc.args.snapshot:
+                setVersion = CNVersion(aVersion=version, snapshotQualifier=wc.args.snapshot)
+            else:
+                setVersion = version
+        versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
+        print('%s: %s, %s:%s' % (moduleDir, version, action, versionString))
+        wc.writeVersion(moduleDir, module, setVersion)
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -462,18 +512,20 @@ USAGE
                     configUpdated = True
 
 
+        moduleVersionMap = {c['moduleName']:str(c['version']) for md, c in versionConfigs.items() if md in args.paths}
         for path in args.paths:
             workContext = WorkContext(args, versionConfigs, path, findMinor)
+            workContext.moduleVersionMap = moduleVersionMap
             doWork(workContext)
             configUpdated |= workContext.versionConfigUpdated
 
         modules = versionConfigs
         moduleNames = set([m['moduleName'] for md, m in modules.items() if md in args.paths])
         for mName in moduleNames:
-            vl = [v['version'] for v in [d for dl in [list(pl.values()) for pl in [m['paths'] for m in modules.values() if m['moduleName'] == mName]] for d in dl]]
+            vl = [v['version'] for v in [d for dl in [list(pl.values()) for pl in [m['paths'] for md, m in modules.items() if md in args.paths and m['moduleName'] == mName]] for d in dl]]
             possibleVersions = set(vl)
             if len(possibleVersions) > 1:
-                ambiguousModuleDirs = [(md, v['version'], f) for md, m in modules.items() if m['moduleName'] == mName for f, v in list(m['paths'].items()) if v['version'] in possibleVersions]
+                ambiguousModuleDirs = [(md, v['version'], f) for md, m in modules.items() if md in args.paths and m['moduleName'] == mName for f, v in list(m['paths'].items()) if v['version'] in possibleVersions]
                 print("Ambigous versions for %s: %s" % (mName, ', '.join([("%s: %s - %s" % (a[0], a[1], a[2])) for a in ambiguousModuleDirs])))
 
         if args.update and configUpdated:
