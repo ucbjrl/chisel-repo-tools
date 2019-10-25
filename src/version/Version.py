@@ -11,12 +11,12 @@ version.Version -- A class providing a definition of and access to the Chisel no
 @deffield    updated: 2019-10-08
 '''
 
-import sys
+import copy
 import os
 import re
 import signal
+import sys
 import traceback
-import copy
 from typing import Tuple
 from dataclasses import dataclass
 
