@@ -11,19 +11,21 @@ versioning.versioning -- module to support version manipulation.
 @deffield    updated: Updated
 '''
 
+import copy
 import os
 import re
 import signal
+import subprocess
 import sys
 import traceback
-import subprocess
-import itertools
+import yaml
 from pathlib import Path
 from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
+from functools import reduce
+
 from version.Version import CNVersion
 from citSupport.monitorRepos import BaseRepo
-from yaml import load, dump
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -93,10 +95,7 @@ class ScalaText:
 
 mapRegex = {
     'begin' : re.compile(r'\bval defaultVersions = Map\('),
-#    'entry' : re.compile(r'(?P<prefix>([^"]*"(?P<moduleName>([[:alnum:]_-]+))"\s*->\s*"))' + CNVersion.versionRegex.pattern + '(?P<suffix>(".*))$'),
-#    'entry' : re.compile(r'(?P<prefix>([^"]*)")(?P<moduleName>([\w-]+))"\s*->\s*"(?P<version>([\w-]+))(?P<suffix>(".*))$'),
-#    'entry' : re.compile(r'(?P<prefix>(\s*"(?P<moduleName>([\w-]+))"\s*->\s*"))(?P<version>([\w-]+))(?P<suffix>(".*))$'),
-    'entry' : re.compile(r'(?P<prefix>(\s*"(?P<moduleName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
+    'entry' : re.compile(r'(?P<prefix>(\s*"(?P<packageName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
     'end' : re.compile(r'\)')
 }
 
@@ -105,7 +104,7 @@ versionFiles = {
         'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]version[[:space:]]*:=[[:space:]]*',
         'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>(' + CNVersion.versionRegex.pattern + r'))(?P<suffix>".*)$'),
-        'moduleNameRegex' : re.compile(r'^\s*name\s*:=\s*"(?P<moduleName>[^"]+)"'),
+        'packageNameRegex' : re.compile(r'^\s*name\s*:=\s*"(?P<packageName>[^"]+)"'),
         'mapBeginRegex' : mapRegex['begin'],
         'mapEntryRegex' : mapRegex['entry'],
         'mapEndRegex' : mapRegex['end']
@@ -114,12 +113,18 @@ versionFiles = {
         'decomment' : ScalaText.decomment,
         'versionTag': r'[^[:alnum:]]def[[:space:]]+publishVersion[[:space:]]*=[[:space:]]*',
         'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>(' + CNVersion.versionRegex.pattern + r'))(?P<suffix>".*)$'),
-        'moduleNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<moduleName>[^"]+)"'),
+        'packageNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<packageName>[^"]+)"'),
         'mapBeginRegex' : mapRegex['begin'],
         'mapEntryRegex' : mapRegex['entry'],
         'mapEndRegex' : mapRegex['end']
     }
 }
+
+class PackageVersion:
+    def __init__(self, name: str, version: CNVersion, map: dict):
+        self.name = name
+        self.version = version
+        self.map = map
 
 class WorkContext:
     def __init__(self, args: str, versionConfig: dict, path: str, findMinor: bool):
@@ -132,6 +137,7 @@ class WorkContext:
         self.findMinor = findMinor
         self.version = None
         self.moduleVersionMap = None
+        self.recurse = True
 
     def currentMinorVersionFromGitTags(self, major: str, path: str) -> CNVersion:
         vt = None
@@ -168,15 +174,88 @@ class WorkContext:
                         break
         return vt
 
+    # Read lines of a file looking for package and version information.
+    # If provided with an output file and PackageVersion, copy the file updating the PackageVersion
+    def analyzeFileLines(self, fileops, input, updatePackageVersion: PackageVersion = None, output = None) -> PackageVersion:
+        versionLineRegex = fileops['versionLineRegex']
+        mapBeginRegex = fileops['mapBeginRegex']
+        mapEntryRegex = fileops['mapEntryRegex']
+        mapEndRegex = fileops['mapEndRegex']
+        decomment = fileops['decomment']
+        packageNameRegex = fileops['packageNameRegex']
+        myVersion = None
+        myPackageName = None
+        update = False
+        inComment = False
+        inMap = False
+        gotInfo = { 'name' : False, 'version' : False, 'map' : False}
+        quitOnAllFound = True if output is None else False
+        myPackageVersionMap = {}
+        for l in input:
+            line = l.rstrip('\n')
+            (test, inComment) = decomment(line, inComment)
+            # Do we have a version map in the uncommented line?
+            mm = None
+            if not inMap:
+                mm = mapBeginRegex.match(test)
+                if mm:
+                    inMap = True
+            if inMap:
+                mm = mapEntryRegex.search(test)
+                if mm:
+                    mm = mapEntryRegex.search(line)
+                    if mm:
+                        packageName = mm.group('packageName')
+                        packageVersion = mm.group('version')
+                        myPackageVersionMap[packageName] = packageVersion
+                        if updatePackageVersion:
+                            if packageName not in updatePackageVersion.map:
+                                print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(self.updatePackageVersion.map.keys())))
+                            else:
+                                newVersion = self.moduleVersionMap[packageName]
+                                if packageVersion != newVersion:
+                                    prefix = mm.group('prefix')
+                                    suffix = mm.group('suffix')
+                                    line = prefix + newVersion + suffix
+                                    update = True
+                mm = mapEndRegex.search(test)
+                if mm:
+                    inMap = False
+                    gotInfo['map'] = True
+            else:
+                pm = packageNameRegex.search(test)
+                if pm:
+                    myPackageName = pm.group('packageName')
+                    gotInfo['name'] = True
+
+                # Do we have a valid version setting in the uncommented line?
+                lm = versionLineRegex.match(test)
+                if lm:
+                    lm = versionLineRegex.match(line)
+                    if lm:
+                        myVersion = CNVersion(aString=lm.group('version'))
+                        gotInfo['version'] = True
+                        if updatePackageVersion and myVersion != updatePackageVersion.version:
+                            versionStr = str(updatePackageVersion.version)
+                            prefix = lm.group('prefix')
+                            suffix = lm.group('suffix')
+                            line = prefix + versionStr + suffix
+                            update = True
+            if quitOnAllFound and reduce(lambda x, y: x and y, gotInfo.values()):
+                break
+            if output:
+                print(line, file=output)
+        return (PackageVersion(myPackageName, myVersion, myPackageVersionMap), update)
+
     def getVersions(self) -> dict:
         """
-        Determine the version(s) of a module (and sub-modules).
+        Determine the version(s) of a module (and possibly sub-modules).
         :return: a dictionary containing module names and versions for any modules found beneath the specified path.
         """
-        line = None
         # If there is a build.sbt or build.sc file, we may be able to extract the version using sbt
         dir = Path(self.path)
-        self.files = [f for f in dir.glob('**/build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
+        dirPrefix = '**/' if self.recurse else ''
+        self.files = [f for f in dir.glob(dirPrefix + 'build.s*') if os.path.basename(f) == 'build.sbt' or os.path.basename(f) == 'build.sc']
         modules = {}
         for f in self.files:
             baseFilename = os.path.basename(f)
@@ -190,31 +269,12 @@ class WorkContext:
             filePath = os.path.normpath(f)
             modules[modulePath]['paths'][filePath] = {}
             fileops = versionFiles[baseFilename]
-            versionTag = fileops['versionTag']
-            versionLineRegex = fileops['versionLineRegex']
-            decomment = fileops['decomment']
-            moduleRE = fileops['moduleNameRegex']
-            myVersion = None
-            myModuleName = None
+            myPackageVersion = None
             with open(f, 'r') as input:
-                inComment = False
-                for l in input:
-                    (line, inComment) = decomment(l.rstrip('\n'), inComment)
-                    mm = moduleRE.search(line)
-                    if mm:
-                        myModuleName = mm.group('moduleName')
-                        if myVersion:
-                            break
-
-                    lm = versionLineRegex.search(line)
-                    if lm:
-                        versionString = lm.group('version')
-                        myVersion = CNVersion(aString=versionString)
-                        if myModuleName:
-                            break
-
-            modules[modulePath]['paths'][filePath]['version'] = myVersion
-            modules[modulePath]['paths'][filePath]['moduleName'] = myModuleName
+                (myPackageVersion, dummy) = self.analyzeFileLines(fileops, input)
+            modules[modulePath]['paths'][filePath]['version'] = myPackageVersion.version
+            modules[modulePath]['paths'][filePath]['packageName'] = myPackageVersion.name
+            modules[modulePath]['paths'][filePath]['map'] = myPackageVersion.map
 
         return (modules)
 
@@ -223,10 +283,12 @@ class WorkContext:
         Determine the version of a module.
         :return: a dictionary containing module names and versions for any modules found beneath the specified path.
         """
+        packageKeys = ['packageName', 'version', 'map']
         for modulePath, module in modules.items():
 
-            possibleModuleNames = []
-            possibleVersions = []
+            possibilities = {}
+            for key in packageKeys:
+                possibilities[key] = []
             for filePath, fileVersion in module['paths'].items():
                 baseFilename = os.path.basename(filePath)
                 modPath = os.path.dirname(filePath)
@@ -250,32 +312,25 @@ class WorkContext:
                                 mismatchedVersions.append(v)
                         if len(mismatchedVersions) == 0:
                             myVersion = deducedVersions[0]
-                possibleVersions.append(myVersion)
+                possibilities['version'].append(myVersion)
 
-                myModuleName = fileVersion['moduleName']
-                if not myModuleName:
-                    myModuleName = 'rocketchip' if moduleDir == 'rocket-chip' else moduleDir
+                myPackageName = fileVersion['packageName']
+                if not myPackageName:
+                    myPackageName = 'rocketchip' if moduleDir == 'rocket-chip' else moduleDir
 
-                possibleModuleNames.append(myModuleName)
+                possibilities['packageName'].append(myPackageName)
+                possibilities['map'].append(fileVersion['map'])
 
-            module['moduleName'] = None
-            if len(possibleModuleNames) > 0:
-                mismatchedModuleNames = []
-                for v in possibleModuleNames[1:]:
-                    if v != possibleModuleNames[0]:
-                        mismatchedModuleNames.append(v)
-                if len(mismatchedModuleNames) == 0:
-                    module['moduleName'] = possibleModuleNames[0]
-
-            module['version'] = None
-            if len(possibleVersions) > 0:
-                mismatchedVersions = []
-                for v in possibleVersions[1:]:
-                    if v != possibleVersions[0]:
-                        mismatchedVersions.append(v)
-
-                if len(mismatchedVersions) == 0:
-                    module['version'] = possibleVersions[0]
+            mismatched = {}
+            for key in packageKeys:
+                module[key] = None
+                if len(possibilities[key]) > 0:
+                    mismatched[key] = []
+                    for v in possibilities[key][1:]:
+                        if v != possibilities[key][0]:
+                            mismatched[key].append(v)
+                    if len(mismatched[key]) == 0:
+                        module[key] = possibilities[key][0]
 
         return (modules)
 
@@ -289,105 +344,93 @@ class WorkContext:
             fv['version'] = version
             baseFilename = os.path.basename(f)
             fileops = versionFiles[baseFilename]
-            versionLineRegex = fileops['versionLineRegex']
-            mapBeginRegex = fileops['mapBeginRegex']
-            mapEntryRegex = fileops['mapEntryRegex']
-            mapEndRegex = fileops['mapEndRegex']
-            decomment = fileops['decomment']
             inputName = str(f)
             outputName = inputName + '.versioning'
             w = Path(outputName)
             update = False
-            inComment = False
-            inMap = False
+            packageName = module['packageName']
+            myPackageVersion = None
             with open(f, 'r') as input, open(w, 'w') as output:
-                for l in input:
-                    line = l.rstrip('\n')
-                    (test, inComment) = decomment(line, inComment)
-                    # Do we have a version map in the uncommented line?
-                    mm = None
-                    if not inMap:
-                        mm = mapBeginRegex.match(test)
-                        if mm:
-                            inMap = True
-                    if inMap:
-                        mm = mapEntryRegex.search(test)
-                        if mm:
-                            mm = mapEntryRegex.search(line)
-                            if mm:
-                                moduleName = mm.group('moduleName')
-                                if moduleName not in self.moduleVersionMap:
-                                    print("%s not in moduleVersionMap (%s)" % (moduleName, ", ".join(self.moduleVersionMap.keys())))
-                                else:
-                                    newVersion = self.moduleVersionMap[moduleName]
-                                    oldVersion = mm.group('version')
-                                    if oldVersion != newVersion:
-                                        prefix = mm.group('prefix')
-                                        suffix = mm.group('suffix')
-                                        line = prefix + newVersion + suffix
-                                        update = True
-                        mm = mapEndRegex.search(test)
-                        if mm:
-                            inMap = False
-
-                    # Do we have a valid version setting in the uncommented line?
-                    lm = versionLineRegex.match(test)
-                    if lm:
-                        lm = versionLineRegex.match(line)
-                        if lm:
-                            oldVersion = CNVersion(aString=lm.group('version'))
-                            if oldVersion != version:
-                                prefix = lm.group('prefix')
-                                suffix = lm.group('suffix')
-                                line = prefix + versionStr + suffix
-                                update = True
-                    print(line, file=output)
+                updatePackageVersion = PackageVersion(packageName, version, self.moduleVersionMap)
+                (myPackageVersion, update) = self.analyzeFileLines(fileops, input, updatePackageVersion, output)
             if update and self.args.update:
                 os.rename(inputName, inputName + '.bak')
                 os.rename(outputName, inputName)
             else:
                 os.remove(outputName)
             self.versionConfigUpdated |= update
-        if self.versionConfig[moduleDir]['version'] != version:
-            self.versionConfig[moduleDir]['version'] = version
-            self.versionConfigUpdated = True
+
+    def moduleIsAuthoritavtive(self, moduleDir: str) -> bool:
+        return len(moduleDir.split(os.path.sep)) == 1
+
+    def determineDependencies(self) -> list:
+        dependencies = []
+        moduleDependencies = {md: m for md, m in self.versionConfig.items() if self.moduleIsAuthoritavtive(md)}
+        modules = list(set(moduleDependencies.keys()))
+        makingProgress = True
+        while len(modules) and makingProgress:
+            d = []
+            updateModuleDependencies = copy.deepcopy(moduleDependencies)
+            for mdir, module in moduleDependencies.items():
+                if len(module['map']) == 0:
+                    d.append(mdir)
+                    del updateModuleDependencies[mdir]
+                    modules.remove(mdir)
+                    packageName = module['packageName']
+                    for dependencyMap in [m['map'] for m in updateModuleDependencies.values()]:
+                        if packageName in dependencyMap.keys():
+                            del dependencyMap[packageName]
+            moduleDependencies = updateModuleDependencies
+            if len(d) > 0:
+                dependencies.append(d)
+            else:
+                makingProgress = False
+        if not makingProgress:
+            raise CLIError("Couldn't determine dependencies for %s" % (", ".join(modules)))
+        return dependencies
 
 
 
-def doWork(wc):
+def doWork(wc) -> int:
     failed = [n for n, m in wc.versionConfig.items() if m['version'] is None]
-
     if len(failed) > 0:
         raise CLIError("Couldn't determine version for %s" % (', '.join(failed)))
 
+    result = 0
+    moduleDirs = list(wc.versionConfig.keys())
     if wc.args.command == 'verify':
         modules = wc.determineVersion(wc.getVersions())
         for modulePath, module in modules.items():
-            mName = module['moduleName']
+            mName = module['packageName']
             if not mName:
                 print("Couldn't determine module name for %s" % (modulePath), file=sys.stderr)
+                result = 1
 
             mVersion = module['version']
             if not mVersion:
                 print("Couldn't determine module version for %s" % (modulePath), file=sys.stderr)
+                result = 1
 
             if mName and mVersion:
                 cModule = {}
-                if modulePath not in wc.versionConfig.keys():
-                    cModule['moduleName'] = mName
+                if modulePath not in moduleDirs:
+                    cModule['packageName'] = mName
                     cModule['version'] = mVersion
                     cModule['paths'] = module['paths']
                     wc.versionConfig[modulePath] = cModule
                 else:
                     cModule = wc.versionConfig[modulePath]
-                    if cModule['version'] != mVersion or cModule['moduleName'] != mName:
-                        print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['moduleName'],  cModule['version'], mName, mVersion))
-                        cModule['moduleName'] = mName
-                        cModule['version'] = mVersion
-                        cModule['paths'] = module['paths']
-                        wc.versionConfigUpdated = True
+                    if cModule['version'] != mVersion or cModule['packageName'] != mName:
+                        print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['packageName'],  cModule['version'], mName, mVersion), file=sys.stderr)
+                        if wc.args.update:
+                            cModule['packageName'] = mName
+                            cModule['version'] = mVersion
+                            cModule['paths'] = module['paths']
+                            wc.versionConfigUpdated = True
+                        else:
+                            result = 1
 
-    else:
+    elif wc.args.command == 'set':
         moduleDir = wc.path
         module = wc.versionConfig[moduleDir]
         version = module['version']
@@ -407,11 +450,49 @@ def doWork(wc):
                 setVersion = version
         versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
         print('%s: %s, %s:%s' % (moduleDir, version, action, versionString))
+        if wc.versionConfig[moduleDir]['version'] != setVersion:
+            wc.versionConfig[moduleDir]['version'] = setVersion
+            wc.versionConfigUpdated = True
         wc.writeVersion(moduleDir, module, setVersion)
+    elif wc.args.command == 'dependency':
+        dependencies = wc.determineDependencies()
+        l = [dd for d in dependencies for dd in d]
+        print(", ".join(l))
+    return result
 
-def main(argv=None): # IGNORE:C0111
+def loadVersionConfigs(configFilename: str) -> dict:
+    configInput = open(configFilename, 'r', encoding="utf-8")
+    versionConfigs = yaml.load(configInput, Loader=Loader)
+    configInput.close()
+    internalConfigs = {}
+    for modulePath, versions in versionConfigs['versions'].items():
+        internalConfigs[modulePath] = {}
+        internalConfigs[modulePath]['packageName'] = versions['packageName']
+        internalConfigs[modulePath]['version'] = CNVersion(aString=versions['version'])
+
+    return internalConfigs
+
+def dumpVersionConfigs(configFilename: str, versionConfigs: dict):
+    d = {}
+    for packageDir, versions in versionConfigs.items():
+        v = {}
+        v['packageName'] = versions['packageName']
+        v['version'] = str(versions['version'])
+        d[packageDir] = v
+    externalRepresentation = {}
+    externalRepresentation['versions'] = d
+    outputFilename = configFilename + '.versioning'
+    configOutput = open(outputFilename, 'w', encoding="utf-8")
+    yaml.dump(externalRepresentation, configOutput)
+    configOutput.close()
+    if os.path.exists(configFilename):
+        os.rename(configFilename, configFilename + '.bak')
+    os.rename(outputFilename, configFilename)
+
+def main(argv=None) -> int: # IGNORE:C0111
     '''Command line options.'''
 
+    exitCode = 0
     if argv is None:
         argv = sys.argv
     else:
@@ -435,10 +516,6 @@ def main(argv=None): # IGNORE:C0111
 
 USAGE
 ''' % (program_shortdesc, str(__date__))
-    minorMatch = re.compile(r'')
-    def hasMinor(versionString: str) -> bool:
-        m = CNVersion.versionRegex.match(versionString)
-        return True if m and m.group('minor') is not None else False
 
     global continueOnError
     try:
@@ -451,7 +528,7 @@ USAGE
         parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs='?', help='generate snapshot version')
         parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
-        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj', 'verify', 'set'])
+        parser.add_argument(dest='command', choices=['bump-min', 'bump-maj', 'verify', 'set', 'dependency'])
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
 
         # Process arguments
@@ -473,70 +550,95 @@ USAGE
         versionConfigs = {}
         configUpdated = False
         if configFilename and os.path.exists(configFilename):
-            configInput = open(configFilename, 'r', encoding="utf-8")
-            versionConfigs = load(configInput, Loader=Loader)
-            configInput.close()
+            versionConfigs = loadVersionConfigs(configFilename)
 
         # Find those modules for which we don't have any information
         needVersions = set(args.paths).difference(set(versionConfigs.keys()))
         findMinor = args.findMinor
+        missing = {}
+        for key in ['minors', 'paths', 'versions', 'maps']:
+            missing[key] = None
         if args.command == 'bump-min' or args.command == 'bump-max':
             if args.release or args.snapshot:
                 rOrs = args.release if args.release else args.snapshot
                 raise CLIError("%s and %s is ambiguous. Please specify one or the other." % (rOrs, args.command))
             if not args.update:
                 print("-u not specified - changes won't be made", file=sys.stderr)
-            missingMinors = [md for md, m in versionConfigs.items() if md in args.paths and not m['version'].hasMinor()]
-            if len(missingMinors):
+            missing['minors'] = [md for md, m in versionConfigs.items() if md in args.paths and not m['version'].hasMinor()]
+            if len(missing['minors']):
                 findMinor = True
-                needVersions = needVersions.union(set(missingMinors))
+        elif args.command == 'dependency':
+            missing['maps'] = [md for md, m in versionConfigs.items() if md in args.paths and not 'map' in m]
+        elif args.command == 'verify':
+            missing['paths'] = args.paths
+
+        needVersions = needVersions.union(*[set(m) for m in missing.values() if (m and len(m) > 0)])
 
         if len(needVersions) > 0:
-            prefix = 'Incomplete' if findMinor else 'No'
-            print('%s versions for %s: using heuristics' % (prefix, ', '.join(needVersions)))
+            prefix = 'Incomplete' if missing['minors'] or missing['paths'] else 'No'
+            missingPieces = ', '.join([key for key, values in missing.items() if key in ['maps', 'paths']])
+            suffixes = []
+            if missing['versions'] or missing['paths']:
+                suffixes.append('reading build files')
+            if missing['minors']:
+                suffixes.append('using heuristics')
+            suffix = ','.join(suffixes)
+            print('%s %s for %s: %s' % (prefix, missingPieces, ', '.join(needVersions), suffix), file=sys.stderr)
             for path in needVersions:
                 workContext = WorkContext(args, versionConfigs, path, findMinor)
                 modules = workContext.determineVersion(workContext.getVersions())
                 for modulePath, module in modules.items():
-                    mName = module['moduleName']
+                    mName = module['packageName']
                     mVersion = module['version']
                     mPaths = module['paths']
                     newModule = {}
                     if modulePath not in versionConfigs.keys():
                         versionConfigs[modulePath] = newModule
+                        newModule['version'] = mVersion
+                        newModule['packageName'] = mName
+                        configUpdated = True
                     else:
                         newModule = versionConfigs[modulePath]
-                    newModule['moduleName'] = mName
-                    newModule['version'] = mVersion
+                        if args.update:
+                            if newModule['version'] != mVersion:
+                                newModule['version'] = mVersion
+                                configUpdated = True
+                            if newModule['packageName'] != mName:
+                                newModule['packageName'] = mName
+                                configUpdated = True
+                    # We update paths and map since these aren't saved in the versions cache.
                     newModule['paths'] = mPaths
-                    configUpdated = True
+                    newModule['map'] = module['map']
 
 
-        moduleVersionMap = {c['moduleName']:str(c['version']) for md, c in versionConfigs.items() if md in args.paths}
-        for path in args.paths:
-            workContext = WorkContext(args, versionConfigs, path, findMinor)
+        moduleVersionMap = {c['packageName']:str(c['version']) for md, c in versionConfigs.items() if md in args.paths}
+        if args.command == 'dependency':
+            workContext = WorkContext(args, versionConfigs, '.', findMinor)
             workContext.moduleVersionMap = moduleVersionMap
-            doWork(workContext)
-            configUpdated |= workContext.versionConfigUpdated
+            dependencies = workContext.determineDependencies()
+            l = [dd for d in dependencies for dd in d]
+            print(" ".join(l))
+        else:
+            for path in args.paths:
+                workContext = WorkContext(args, versionConfigs, path, findMinor)
+                workContext.moduleVersionMap = moduleVersionMap
+                result = doWork(workContext)
+                if result == 0:
+                    configUpdated |= workContext.versionConfigUpdated
+                exitCode = max(exitCode, result)
 
-        modules = versionConfigs
-        moduleNames = set([m['moduleName'] for md, m in modules.items() if md in args.paths])
-        for mName in moduleNames:
-            vl = [v['version'] for v in [d for dl in [list(pl.values()) for pl in [m['paths'] for md, m in modules.items() if md in args.paths and m['moduleName'] == mName]] for d in dl]]
-            possibleVersions = set(vl)
-            if len(possibleVersions) > 1:
-                ambiguousModuleDirs = [(md, v['version'], f) for md, m in modules.items() if md in args.paths and m['moduleName'] == mName for f, v in list(m['paths'].items()) if v['version'] in possibleVersions]
-                print("Ambigous versions for %s: %s" % (mName, ', '.join([("%s: %s - %s" % (a[0], a[1], a[2])) for a in ambiguousModuleDirs])))
+            modules = versionConfigs
+            moduleNames = set([m['packageName'] for md, m in modules.items() if md in args.paths])
+            for mName in moduleNames:
+                vl = [v['version'] for v in [d for dl in [list(pl.values()) for pl in [m['paths'] for md, m in modules.items() if md in args.paths and m['packageName'] == mName]] for d in dl]]
+                possibleVersions = set(vl)
+                if len(possibleVersions) > 1:
+                    ambiguousModuleDirs = [(md, v['version'], f) for md, m in modules.items() if md in args.paths and m['packageName'] == mName for f, v in list(m['paths'].items()) if v['version'] in possibleVersions]
+                    print("Ambigous versions for %s: %s" % (mName, ', '.join([("%s: %s - %s" % (a[0], a[1], a[2])) for a in ambiguousModuleDirs])))
 
-        if args.update and configUpdated:
-            outputFilename = configFilename + '.versioning'
-            configOutput = open(outputFilename, 'w', encoding="utf-8")
-            dump(versionConfigs, configOutput)
-            configOutput.close()
-            if os.path.exists(configFilename):
-                os.rename(configFilename, configFilename + '.bak')
-            os.rename(outputFilename, configFilename)
-        return 0
+            if args.update and configUpdated:
+                dumpVersionConfigs(configFilename, versionConfigs)
+        return exitCode
 
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
@@ -570,4 +672,5 @@ if __name__ == "__main__":
         stats.print_stats()
         statsfile.close()
         sys.exit(0)
-    main()
+    exitCode = main()
+    sys.exit(exitCode)
