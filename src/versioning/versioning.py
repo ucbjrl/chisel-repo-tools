@@ -456,23 +456,10 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
     else:
         moduleDir = wc.path
         module = wc.versionConfig[moduleDir]
-        version = module['version']
-
-        setVersion = None
+        setVersion = module['version']
         action = 'set' if wc.args.update else '(would set)'
-        if wc.args.command == 'bump-min':
-            setVersion = version.bumpMinor()
-        elif wc.args.command == 'bump-maj':
-            setVersion = version.bumpMajor()
-        elif wc.args.command == 'set':
-            if wc.args.release is not None:
-                setVersion = CNVersion(aVersion=version, releaseQualifier=wc.args.release)
-            elif wc.args.snapshot is not None:
-                setVersion = CNVersion(aVersion=version, snapshotQualifier=wc.args.snapshot)
-            else:
-                setVersion = version
         versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
-        print('%s: %s, %s:%s' % (moduleDir, version, action, versionString))
+        print('%s: %s:%s' % (moduleDir, action, versionString))
         if wc.versionConfig[moduleDir]['version'] != setVersion:
             wc.versionConfig[moduleDir]['version'] = setVersion
             wc.versionConfigUpdated = True
@@ -577,7 +564,7 @@ USAGE
         missing = {}
         for key in ['minors', 'paths', 'versions', 'maps']:
             missing[key] = None
-        if args.command == 'bump-min' or args.command == 'bump-max':
+        if args.command == 'bump-min' or args.command == 'bump-maj':
             if args.release or args.snapshot:
                 rOrs = args.release if args.release else args.snapshot
                 raise CLIError("%s and %s is ambiguous. Please specify one or the other." % (rOrs, args.command))
@@ -618,7 +605,7 @@ USAGE
                         configUpdated = True
                     else:
                         newModule = versionConfigs[modulePath]
-                        if args.update:
+                        if args.update and args.command == 'verify':
                             if newModule['version'] != mVersion:
                                 newModule['version'] = mVersion
                                 configUpdated = True
@@ -632,6 +619,32 @@ USAGE
 
         moduleDirs = set(args.paths).union(versionConfigs.keys())
         authoritativeModules = {m['packageName']: m for md, m in versionConfigs.items() if moduleIsAuthoritative(md)}
+        if args.command == 'bump-min' or args.command == 'bump-maj':
+            for path in args.paths:
+                moduleDir = path
+                module = versionConfigs[moduleDir]
+                version = module['version']
+
+                setVersion = None
+                if args.release is not None:
+                    setVersion = CNVersion(aVersion=version, releaseQualifier=args.release)
+                elif args.snapshot is not None:
+                    setVersion = CNVersion(aVersion=version, snapshotQualifier=args.snapshot)
+                else:
+                    setVersion = version
+                action = 'set' if args.update else '(would set)'
+                if args.command == 'bump-min':
+                    setVersion = setVersion.bumpMinor()
+                elif args.command == 'bump-maj':
+                    setVersion = setVersion.bumpMajor()
+                elif args.command == 'set':
+                    pass
+                versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
+                print('%s: %s, %s:%s' % (moduleDir, version, action, versionString))
+                if versionConfigs[moduleDir]['version'] != setVersion:
+                    versionConfigs[moduleDir]['version'] = setVersion
+                    configUpdated = True
+
         moduleVersionMap = {c['packageName']:str(c['version']) for md, c in versionConfigs.items() if moduleIsAuthoritative(md)}
         if args.command == 'dependency':
             workContext = WorkContext(args, versionConfigs, '.', findMinor)
