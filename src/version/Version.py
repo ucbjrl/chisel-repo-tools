@@ -58,12 +58,14 @@ class CNVersion:
     def bumpMajor(self) -> 'CNVersion':
         someInts = list(self.theInts)
         someInts[1] += 1
-        someInts[2] = 0
+        if someInts[2] is not None:
+            someInts[2] = 0
         return CNVersion(aVersion=self, theInts=someInts)
 
     def bumpMinor(self) -> 'CNVersion':
         someInts = list(self.theInts)
-        someInts[2] += 1
+        if someInts[2] is not None:
+            someInts[2] += 1
         return CNVersion(aVersion=self, theInts=someInts)
 
     def releaseVersion(self) -> str:
