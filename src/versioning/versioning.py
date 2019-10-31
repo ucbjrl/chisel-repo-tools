@@ -95,7 +95,7 @@ class ScalaText:
 
 mapRegex = {
     'begin' : re.compile(r'\bval defaultVersions = Map\('),
-    'entry' : re.compile(r'(?P<prefix>(\s*"(?P<packageName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
+    'entry' : re.compile(r'(?P<prefix>(.*"(?P<packageName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
     'end' : re.compile(r'\)')
 }
 
@@ -119,6 +119,9 @@ versionFiles = {
         'mapEndRegex' : mapRegex['end']
     }
 }
+
+def moduleIsAuthoritative(moduleDir: str) -> bool:
+    return len(moduleDir.split(os.path.sep)) == 1
 
 class PackageVersion:
     def __init__(self, name: str, version: CNVersion, map: dict):
@@ -360,12 +363,9 @@ class WorkContext:
                 os.remove(outputName)
             self.versionConfigUpdated |= update
 
-    def moduleIsAuthoritavtive(self, moduleDir: str) -> bool:
-        return len(moduleDir.split(os.path.sep)) == 1
-
     def determineDependencies(self) -> list:
         dependencies = []
-        moduleDependencies = {md: m for md, m in self.versionConfig.items() if self.moduleIsAuthoritavtive(md)}
+        moduleDependencies = {md: m for md, m in self.versionConfig.items() if moduleIsAuthoritative(md)}
         modules = list(set(moduleDependencies.keys()))
         makingProgress = True
         while len(modules) and makingProgress:
@@ -391,7 +391,7 @@ class WorkContext:
 
 
 
-def doWork(wc) -> int:
+def doWork(wc: dict, authoritativeModules: dict) -> int:
     failed = [n for n, m in wc.versionConfig.items() if m['version'] is None]
     if len(failed) > 0:
         raise CLIError("Couldn't determine version for %s" % (', '.join(failed)))
@@ -400,6 +400,7 @@ def doWork(wc) -> int:
     moduleDirs = list(wc.versionConfig.keys())
     if wc.args.command == 'verify':
         modules = wc.determineVersion(wc.getVersions())
+
         for modulePath, module in modules.items():
             mName = module['packageName']
             if not mName:
@@ -429,8 +430,30 @@ def doWork(wc) -> int:
                             wc.versionConfigUpdated = True
                         else:
                             result = 1
+                    else:
+                        oPaths = set(cModule['paths'].keys())
+                        mPaths = set(module['paths'].keys())
+                        if oPaths != mPaths:
+                            print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['packageName'],  oPaths, mName, mPaths), file=sys.stderr)
+                            result = 1
+                        else:
+                            for path in oPaths:
+                                oMap = cModule['paths'][path]['map']
+                                mMap = module['paths'][path]['map']
+                                if oMap != mMap:
+                                    print('verify: %s - %s (%s) != %s (%s)' % (path, cModule['packageName'],  oMap, mName, mMap), file=sys.stderr)
+                                    result = 1
+                                for oPname, oPversion in mMap.items():
+                                    mVersion = str(authoritativeModules[oPname]['version'])
+                                    if oPversion != mVersion:
+                                        print('verify: %s map - %s (%s) != %s (%s)' % (path, oPname,  oPversion, oPname, mVersion), file=sys.stderr)
+                                        result = 1
 
-    elif wc.args.command == 'set':
+    elif wc.args.command == 'dependency':
+        dependencies = wc.determineDependencies()
+        l = [dd for d in dependencies for dd in d]
+        print(", ".join(l))
+    else:
         moduleDir = wc.path
         module = wc.versionConfig[moduleDir]
         version = module['version']
@@ -442,9 +465,9 @@ def doWork(wc) -> int:
         elif wc.args.command == 'bump-maj':
             setVersion = version.bumpMajor()
         elif wc.args.command == 'set':
-            if wc.args.release:
+            if wc.args.release is not None:
                 setVersion = CNVersion(aVersion=version, releaseQualifier=wc.args.release)
-            elif wc.args.snapshot:
+            elif wc.args.snapshot is not None:
                 setVersion = CNVersion(aVersion=version, snapshotQualifier=wc.args.snapshot)
             else:
                 setVersion = version
@@ -454,10 +477,6 @@ def doWork(wc) -> int:
             wc.versionConfig[moduleDir]['version'] = setVersion
             wc.versionConfigUpdated = True
         wc.writeVersion(moduleDir, module, setVersion)
-    elif wc.args.command == 'dependency':
-        dependencies = wc.determineDependencies()
-        l = [dd for d in dependencies for dd in d]
-        print(", ".join(l))
     return result
 
 def loadVersionConfigs(configFilename: str) -> dict:
@@ -569,7 +588,7 @@ USAGE
                 findMinor = True
         elif args.command == 'dependency':
             missing['maps'] = [md for md, m in versionConfigs.items() if md in args.paths and not 'map' in m]
-        elif args.command == 'verify':
+        elif args.command == 'verify' or args.command == 'set':
             missing['paths'] = args.paths
 
         needVersions = needVersions.union(*[set(m) for m in missing.values() if (m and len(m) > 0)])
@@ -611,7 +630,9 @@ USAGE
                     newModule['map'] = module['map']
 
 
-        moduleVersionMap = {c['packageName']:str(c['version']) for md, c in versionConfigs.items() if md in args.paths}
+        moduleDirs = set(args.paths).union(versionConfigs.keys())
+        authoritativeModules = {m['packageName']: m for md, m in versionConfigs.items() if moduleIsAuthoritative(md)}
+        moduleVersionMap = {c['packageName']:str(c['version']) for md, c in versionConfigs.items() if moduleIsAuthoritative(md)}
         if args.command == 'dependency':
             workContext = WorkContext(args, versionConfigs, '.', findMinor)
             workContext.moduleVersionMap = moduleVersionMap
@@ -622,7 +643,7 @@ USAGE
             for path in args.paths:
                 workContext = WorkContext(args, versionConfigs, path, findMinor)
                 workContext.moduleVersionMap = moduleVersionMap
-                result = doWork(workContext)
+                result = doWork(workContext, authoritativeModules)
                 if result == 0:
                     configUpdated |= workContext.versionConfigUpdated
                 exitCode = max(exitCode, result)
