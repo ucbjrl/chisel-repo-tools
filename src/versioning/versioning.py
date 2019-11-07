@@ -19,7 +19,7 @@ import subprocess
 import sys
 import traceback
 import yaml
-from pathlib import Path
+from pathlib import Path, PurePath
 from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
 from functools import reduce
@@ -94,7 +94,7 @@ class ScalaText:
         return((line, inComment))
 
 mapRegex = {
-    'begin' : re.compile(r'\bval defaultVersions = Map\('),
+    'begin' : re.compile(r'\bval defaultVersions\s*=\s*(Map|Seq)\('),
     'entry' : re.compile(r'(?P<prefix>(.*"(?P<packageName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
     'end' : re.compile(r'\)')
 }
@@ -121,47 +121,56 @@ versionFiles = {
 }
 
 commands = {
-    'collect' : {
+    'read' : {
+        'description' : 'read build files and create/update version config cache',
         'prereqs' : ['paths', 'versions'],
         'writeConfig' : True,
         'writeFiles' : False
     },
     'add' : {
-        'prereqs' : ['paths', 'versions'],
-        'writeConfig' : True,
-        'writeFiles' : False
-    },
-    'remove' : {
+        'description' : 'add/update a module to the version config cache',
         'prereqs' : None,
         'writeConfig' : True,
         'writeFiles' : False
     },
-    'set' : {
-        'prereqs' : ['paths', 'versions', 'maps'],
+    'remove' : {
+        'description' : 'remove a module from the version config cache',
+        'prereqs' : None,
+        'writeConfig' : True,
+        'writeFiles' : False
+    },
+    'write' : {
+        'description' : 'update build files from the version config cache',
+        'prereqs' : ['paths', 'versions'],
         'writeConfig' : False,
         'writeFiles' : True
     },
     'verify' : {
-        'prereqs' : ['paths', 'versions', 'maps'],
+        'description' : 'read build files and verify they conform to the version config cache',
+        'prereqs' : ['versions'],
         'writeConfig' : False,
         'writeFiles' : False
     },
     'bump-maj' : {
-        'prereqs' : ['paths', 'versions', 'maps'],
+        'description' : 'update the major version number for the specified module in the version config cache and build files',
+        'prereqs' : ['paths', 'versions'],
         'writeConfig' : True,
         'writeFiles' : True
     },
     'bump-min' : {
-        'prereqs' : ['minors', 'paths', 'versions', 'maps'],
+        'description' : 'update the minor version number for the specified module in the version config cache and build files',
+        'prereqs' : ['minors', 'paths', 'versions'],
         'writeConfig' : True,
         'writeFiles' : True
     },
     'dependency' : {
+        'description' : 'generate dependency information (build order) from the dependency maps in the build files',
         'prereqs' : ['maps'],
         'writeConfig' : False,
         'writeFiles' : False
     },
     'help' : {
+        'description' : 'provide help text',
         'prereqs' : None,
         'writeConfig' : False,
         'writeFiles' : False
@@ -312,7 +321,8 @@ class WorkContext:
             baseFilename = os.path.basename(f)
             modulePath = os.path.dirname(f)
             (relRoot, moduleDir) = os.path.split(modulePath)
-            if moduleDir == 'sbt' and self.path == 'rocket-chip':
+            dirComponents = PurePath(relRoot).parts
+            if moduleDir == 'sbt' and 'rocket-chip' in dirComponents:
                 continue
             if not modulePath in modules.keys():
                 modules[modulePath] = {}
@@ -445,6 +455,8 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
         raise CLIError("Couldn't determine version for %s" % (', '.join(failed)))
 
     result = 0
+    action = '(would set)' if wc.dryRun else 'set'
+
     moduleDirs = list(wc.versionConfig.keys())
     if wc.args.command == 'verify':
         modules = wc.determineVersion(wc.getVersions())
@@ -463,49 +475,53 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
             if mName and mVersion:
                 cModule = {}
                 if modulePath not in moduleDirs:
-                    cModule['packageName'] = mName
-                    cModule['version'] = mVersion
-                    cModule['paths'] = module['paths']
-                    wc.versionConfig[modulePath] = cModule
+                    print('verify: %s isn\'t in version cache' % (modulePath), file=sys.stderr)
                 else:
                     cModule = wc.versionConfig[modulePath]
                     if cModule['version'] != mVersion or cModule['packageName'] != mName:
                         print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['packageName'],  cModule['version'], mName, mVersion), file=sys.stderr)
-                        if wc.dryRun:
-                            result = 1
-                        else:
-                            cModule['packageName'] = mName
-                            cModule['version'] = mVersion
-                            cModule['paths'] = module['paths']
-                            wc.versionConfigUpdated = True
-                    else:
-                        oPaths = set(cModule['paths'].keys())
-                        mPaths = set(module['paths'].keys())
-                        if oPaths != mPaths:
-                            print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['packageName'],  oPaths, mName, mPaths), file=sys.stderr)
-                            result = 1
-                        else:
-                            for path in oPaths:
-                                oMap = cModule['paths'][path]['map']
-                                mMap = module['paths'][path]['map']
-                                if oMap != mMap:
-                                    print('verify: %s - %s (%s) != %s (%s)' % (path, cModule['packageName'],  oMap, mName, mMap), file=sys.stderr)
-                                    result = 1
-                                for oPname, oPversion in mMap.items():
-                                    mVersion = str(authoritativeModules[oPname]['version'])
-                                    if oPversion != mVersion:
-                                        print('verify: %s map - %s (%s) != %s (%s)' % (path, oPname,  oPversion, oPname, mVersion), file=sys.stderr)
-                                        result = 1
+                        result = 1
 
     elif wc.args.command == 'dependency':
         dependencies = wc.determineDependencies()
         l = [dd for d in dependencies for dd in d]
         print(", ".join(l))
+    elif wc.args.command == 'add':
+        modules = wc.determineVersion(wc.getVersions())
+
+        for modulePath, module in modules.items():
+            mName = module['packageName']
+            if not mName:
+                print("Couldn't determine module name for %s" % (modulePath), file=sys.stderr)
+                result = 1
+
+            mVersion = module['version']
+            if not mVersion:
+                print("Couldn't determine module version for %s" % (modulePath), file=sys.stderr)
+                result = 1
+
+            if mName and mVersion:
+                localUpdate = False
+                cModule = {}
+                if modulePath in moduleDirs:
+                    print('verify: %s already in version cache - treating as update' % (modulePath), file=sys.stderr)
+                    cModule = wc.versionConfig[modulePath]
+                    if cModule['version'] != mVersion or cModule['packageName'] != mName:
+                        cModule['version'] = mVersion
+                        cModule['packageName'] = mName
+                        localUpdate = True
+                else:
+                    cModule['version'] = mVersion
+                    cModule['packageName'] = mName
+                    wc.versionConfig[modulePath] = cModule
+                    localUpdate = True
+                if localUpdate:
+                    print('verify - add: %s %s %s:%s' % (modulePath, action, mName, mVersion))
+                    wc.versionConfigUpdated = True
     else:
         moduleDir = wc.path
         module = wc.versionConfig[moduleDir]
         setVersion = module['version']
-        action = '(would set)' if wc.dryRun else 'set'
         versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
         print('%s: %s:%s' % (moduleDir, action, versionString))
         if wc.versionConfig[moduleDir]['version'] != setVersion:
@@ -574,15 +590,16 @@ USAGE
     global continueOnError
     try:
         # Setup argument parser
-        parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter)
+        maxCommandLength = max([len(c) for c in commands.keys()])
+        commandDescriptions = '\n' + '\n'.join(['%s%s: %s' % (c, ' '*(maxCommandLength - len(c)), i['description']) for c, i in commands.items()])
+        parser = ArgumentParser(description=program_license, formatter_class=RawDescriptionHelpFormatter, epilog=commandDescriptions)
         parser.add_argument('-R', '--recursive', dest='recursive', action='store_true', help='look for version info in any sub-directories')
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument('-c', '--config', dest='config', action='store', help='config file containing all module versions', default='version.yml')
         parser.add_argument('-m', '--minor', dest='findMinor', action='store_true', help='determine minor version if it\'s not explicit')
         parser.add_argument('-n', '--dry-run', dest='dryRun', action='store_true', help='don\'t actually modify anything')
-        parser.add_argument('-r', '--release', dest='release', action='store', nargs='?', help='generate release version')
-        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs='?', help='generate snapshot version')
-#        parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
+        parser.add_argument('-r', '--release', dest='release', action='store', nargs=1, help='generate release version')
+        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs=1, help='generate snapshot version')#        parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument(dest='command', choices=commands.keys())
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
@@ -602,7 +619,7 @@ USAGE
             raise CLIError("Can't specify both release (-r) and snapshot (-s)")
 
         if args.command == 'help':
-            parser.print_usage()
+            parser.print_help()
             sys.exit(2)
 
         # Load the version configuration
@@ -619,32 +636,37 @@ USAGE
         else:
             modulePaths = args.paths if len(args.paths) > 0 else versionConfigs.keys()
 
-        # Find those modules for which we don't have any information
-        needVersions = set(modulePaths).difference(set(versionConfigs.keys())) if modulePaths != ['.'] else set(['.'])
+        # Find those modules for which we don't have any version information (currently unlikely)
+        needVersions = set([vk for vk, vi in versionConfigs.items() if 'version' not in vi or vi['version'] is None])
         findMinor = args.findMinor
         missing = {}
         for key in ['minors', 'paths', 'versions', 'maps']:
             missing[key] = None
         commandDesc = commands[args.command]
 
+        # Does this command update the config file, at least in principle?
+        writeConfig = commandDesc['writeConfig'] or args.release is not None or args.snapshot is not None
         if args.dryRun:
             print("-n specified - changes won't be persistent", file=sys.stderr)
 
         # Do we need minor version numbers?
-        if 'minors' in commandDesc['prereqs'] or args.release is not None:
-            missing['minors'] = [md for md, m in versionConfigs.items() if md in modulePaths and not m['version'].hasMinor()]
-            if len(missing['minors']):
-                findMinor = True
-        if 'maps' in commandDesc['prereqs']:
-            missing['maps'] = [md for md, m in versionConfigs.items() if md in modulePaths and not 'map' in m]
-        if 'paths' in commandDesc['prereqs']:
-            missing['paths'] = modulePaths
+        if commandDesc['prereqs']:
+            if 'minors' in commandDesc['prereqs'] or args.release is not None:
+                missing['minors'] = [md for md, m in versionConfigs.items() if md in modulePaths and not m['version'].hasMinor()]
+                if len(missing['minors']):
+                    findMinor = True
+            if 'maps' in commandDesc['prereqs']:
+                missing['maps'] = [md for md, m in versionConfigs.items() if md in modulePaths and not 'map' in m]
+            if 'paths' in commandDesc['prereqs']:
+                missing['paths'] = modulePaths
+            if 'versions' in commandDesc['prereqs']:
+                missing['versions'] = needVersions
 
         needVersions = needVersions.union(*[set(m) for m in missing.values() if (m and len(m) > 0)])
 
         if len(needVersions) > 0:
             prefix = 'Incomplete' if missing['minors'] or missing['paths'] else 'No'
-            missingPieces = ', '.join([key for key, values in missing.items() if key in ['maps', 'paths']])
+            missingPieces = ', '.join([key for key, values in missing.items() if values])
             suffixes = []
             if missing['versions'] or missing['paths']:
                 suffixes.append('reading build files')
@@ -656,26 +678,9 @@ USAGE
                 workContext = WorkContext(args, versionConfigs, path, findMinor)
                 modules = workContext.determineVersion(workContext.getVersions())
                 for modulePath, module in modules.items():
-                    mName = module['packageName']
-                    mVersion = module['version']
-                    mPaths = module['paths']
-                    newModule = {}
-                    if modulePath not in versionConfigs.keys():
-                        versionConfigs[modulePath] = newModule
-                        newModule['version'] = mVersion
-                        newModule['packageName'] = mName
-                        configUpdated = True
-                    else:
-                        newModule = versionConfigs[modulePath]
-                        if not args.dryRun and args.command == 'verify':
-                            if newModule['version'] != mVersion:
-                                newModule['version'] = mVersion
-                                configUpdated = True
-                            if newModule['packageName'] != mName:
-                                newModule['packageName'] = mName
-                                configUpdated = True
+                    newModule = versionConfigs[modulePath]
                     # We update paths and map since these aren't saved in the versions cache.
-                    newModule['paths'] = mPaths
+                    newModule['paths'] = module['paths']
                     newModule['map'] = module['map']
 
 
@@ -683,7 +688,7 @@ USAGE
         authoritativeModules = {m['packageName']: m for md, m in versionConfigs.items() if moduleIsAuthoritative(md)}
 
         # Are we going to update the version information (in the version cache and the build files)?
-        if commandDesc['writeConfig'] and commandDesc['writeFiles']:
+        if writeConfig and commandDesc['writeFiles']:
             for path in modulePaths:
                 moduleDir = path
                 module = versionConfigs[moduleDir]
@@ -718,15 +723,17 @@ USAGE
             l = [dd for d in dependencies for dd in d]
             print(" ".join(l))
         else:
-            if args.command == 'verify' or commandDesc['writeFiles']:
-                for path in modulePaths:
-                    workContext = WorkContext(args, versionConfigs, path, findMinor)
-                    workContext.moduleVersionMap = moduleVersionMap
-                    result = doWork(workContext, authoritativeModules)
-                    if result == 0:
-                        configUpdated |= workContext.versionConfigUpdated
-                    exitCode = max(exitCode, result)
+            for path in modulePaths:
+                workContext = WorkContext(args, versionConfigs, path, findMinor)
+                workContext.moduleVersionMap = moduleVersionMap
+                result = doWork(workContext, authoritativeModules)
+                if result == 0:
+                    configUpdated |= workContext.versionConfigUpdated
+                exitCode = max(exitCode, result)
 
+            # Do we have paths as a prerequisite?
+            # If so, check for consistency
+            if commandDesc['prereqs'] and 'paths' in commandDesc['prereqs']:
                 modules = versionConfigs
                 moduleNames = set([m['packageName'] for md, m in modules.items() if md in modulePaths])
                 for mName in moduleNames:
