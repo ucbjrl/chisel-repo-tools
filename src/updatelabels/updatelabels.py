@@ -98,8 +98,8 @@ class ChiselLabels:
     def label(category, selector):
         return ChiselLabels.labels[category][selector]
 
-def updatelabels(repoPath):
-    modName = __name__ + '.updatelabels'
+def getLabels(repoPath):
+    modName = __name__ + '.getLabels'
 
     baseRepo = BaseRepo(repoPath)
     if baseRepo is None:
@@ -126,15 +126,25 @@ def updatelabels(repoPath):
         if oldDescription is not None and oldDescription != '' and not oldDescription in [l['description'] for l in ChiselLabels.oldLabels[oldLabel]['descriptions']]:
             ChiselLabels.oldLabels[oldLabel]['descriptions'].append(d)
 
-def reportCollisions():
+def reportCollisions() -> dict:
     modName = __name__ + '.reportCollisions'
 
+    lostLabels = []
+    ignoredLabels = []
+    collisions = {}
+    collisions['color'] = []
+    collisions['description'] = []
+    newLabels = {}
     for name, refs in ChiselLabels.oldLabels.items():
         labels = refs['colors']
-        if len(labels) > 1:
+        newColor = None
+        newDescription = None
+        if len(labels) == 1:
+            newColor = int(labels[0]['color'], 16)
+        else:
             nColors = len(labels)
             colors = [l['color'] for l in labels]
-            collissions = [("%s (%s)" % (l['color'], l['repo'])) for l in labels]
+            colorCollisions = [("%s (%s)" % (l['color'], l['repo'])) for l in labels]
             r = b = g = 0
             for color in colors:
                 val = bytes.fromhex(color)
@@ -145,11 +155,75 @@ def reportCollisions():
             g = int(g/nColors)
             b = int(b/nColors)
             newColor = (r << 16 ) | (g << 8) | (b)
-            print('color collision: %s %s -> %s' % (name, ', '.join(collissions), hex(newColor)))
+            collisions['color'].append('color collision: %s %s -> %s' % (name, ', '.join(colorCollisions), hex(newColor)))
         labels = refs['descriptions']
-        if len(labels) > 1:
-            collissions = [("%s (%s)" % (l['description'], l['repo'])) for l in labels]
-            print('description collision: %s %s' % (name, '; '.join(collissions)))
+        if len(labels) == 1:
+            newDescription = labels[0]['description']
+        elif len(labels) == 0:
+            pass
+        else:
+            # Choose the first, longest description
+            maxLength = max([len(l['description']) for l in labels])
+            newDescription = [l['description'] for l in labels if len(l['description']) == maxLength][0]
+            descCollisions = [("%s (%s)" % (l['description'], l['repo'])) for l in labels]
+            collisions['description'].append('description collision: %s %s -> %s' % (name, '; '.join(descCollisions), newDescription))
+        newLabelTuple = None
+        if not name in ChiselLabels.oldLabelMap:
+            newLabelTuple = ('operation', name)
+        else:
+            newLabelTuple = ChiselLabels.oldLabelMap[name]
+        if newLabelTuple is None:
+            lostLabels.append('losing label: %s' % (name))
+        else:
+            newLabelName = ("%s: %s" % (newLabelTuple[0], newLabelTuple[1]))
+            if newLabelName in newLabels:
+                ignoredLabels.append('ignoring label: %s (%s, %s)' % (name, hex(newColor), newDescription))
+            else:
+                newLabel = {}
+                newLabel['color'] = newColor
+                newLabel['description'] = newDescription
+                newLabels[newLabelName] = newLabel
+    for cType, l in collisions.items():
+        for c in l:
+            print(c, file=sys.stderr)
+    for l in set(ignoredLabels):
+        print(l, file=sys.stderr)
+    for l in set(lostLabels):
+        print(l, file=sys.stderr)
+
+    return newLabels
+
+def updateLabels(newLabels: dict):
+    modName = __name__ + '.updateLabels'
+
+    for name, attributes in newLabels.items():
+        print("%s (%s, %s)" % (name, hex(attributes['color']), attributes['description']))
+
+def pushLabels(repoPath: str, labels: dict):
+    modName = __name__ + '.pushLabels'
+
+    baseRepo = BaseRepo(repoPath)
+    if baseRepo is None:
+        exit(1)
+    baseRepo.connect()
+    repo = baseRepo.remoterepo
+    existingLabelList = list(repo.labels())
+    existingLabels = {}
+    for l in existingLabelList:
+        el = l.as_dict()
+        existingLabels[el['name']] = l
+    for name, attributes in labels.items():
+        color = hex(attributes['color'])[2:]
+        cLen = len(color)
+        # The lable create/update will fail if the color specification isn't six hex characters.
+        if cLen < 6:
+            color = '0'*(6-cLen) + color
+        description = attributes['description'] if attributes['description'] is not None else ''
+        if name in existingLabels:
+            l = existingLabels[name]
+            l.update(name, color, description)
+        else:
+            repo.create_label(name, color, description)
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -193,8 +267,10 @@ USAGE
             print("Verbose mode on")
 
         for path in args.paths:
-            updatelabels(path)
-        reportCollisions()
+            getLabels(path)
+        newLabels = reportCollisions()
+        updateLabels(newLabels)
+        pushLabels('.', newLabels)
         return 0
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
