@@ -598,8 +598,8 @@ USAGE
         parser.add_argument('-c', '--config', dest='config', action='store', help='config file containing all module versions', default='version.yml')
         parser.add_argument('-m', '--minor', dest='findMinor', action='store_true', help='determine minor version if it\'s not explicit')
         parser.add_argument('-n', '--dry-run', dest='dryRun', action='store_true', help='don\'t actually modify anything')
-        parser.add_argument('-r', '--release', dest='release', action='store', nargs=1, help='generate release version')
-        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', nargs=1, help='generate snapshot version')#        parser.add_argument('-u', '--update', dest='update', action='store_true', help='Update changed files')
+        parser.add_argument('-r', '--release', dest='release', action='store', help='generate release version')
+        parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', help='generate snapshot version')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument(dest='command', choices=commands.keys())
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
@@ -664,6 +664,7 @@ USAGE
 
         needVersions = needVersions.union(*[set(m) for m in missing.values() if (m and len(m) > 0)])
 
+        updatedVersions = {}
         if len(needVersions) > 0:
             prefix = 'Incomplete' if missing['minors'] or missing['paths'] else 'No'
             missingPieces = ', '.join([key for key, values in missing.items() if values])
@@ -682,6 +683,8 @@ USAGE
                     # We update paths and map since these aren't saved in the versions cache.
                     newModule['paths'] = module['paths']
                     newModule['map'] = module['map']
+                    # Keep the freshly determined version distinct.
+                    updatedVersions[modulePath] = module['version']
 
 
         moduleDirs = set(modulePaths).union(versionConfigs.keys())
@@ -689,10 +692,8 @@ USAGE
 
         # Are we going to update the version information (in the version cache and the build files)?
         if writeConfig and commandDesc['writeFiles']:
-            for path in modulePaths:
-                moduleDir = path
-                module = versionConfigs[moduleDir]
-                version = module['version']
+            for moduleDir in modulePaths:
+                version = updatedVersions[moduleDir]
 
                 setVersion = None
                 if args.release is not None:
@@ -709,9 +710,10 @@ USAGE
                 elif args.command == 'set':
                     pass
                 # Do we have a version to update?
-                if versionConfigs[moduleDir]['version'] != setVersion:
+                oldVersion = versionConfigs[moduleDir]['version']
+                if oldVersion != setVersion:
                     versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
-                    print('%s: %s, %s:%s' % (moduleDir, version, action, versionString))
+                    print('%s: %s, %s:%s' % (moduleDir, oldVersion, action, versionString))
                     versionConfigs[moduleDir]['version'] = setVersion
                     configUpdated = True
 
