@@ -163,8 +163,20 @@ commands = {
         'writeConfig' : True,
         'writeFiles' : True
     },
-    'dependency' : {
+    'dependency-order' : {
         'description' : 'generate dependency information (build order) from the dependency maps in the build files',
+        'prereqs' : ['maps'],
+        'writeConfig' : False,
+        'writeFiles' : False
+    },
+    'dependency-array' : {
+        'description' : 'generate dependency information (bash associative array) from the dependency maps in the build files',
+        'prereqs' : ['maps'],
+        'writeConfig' : False,
+        'writeFiles' : False
+    },
+    'dependency-cicache' : {
+        'description' : 'generate dependency information (CircleCI cache keys) from the dependency maps in the build files',
         'prereqs' : ['maps'],
         'writeConfig' : False,
         'writeFiles' : False
@@ -421,10 +433,16 @@ class WorkContext:
                 os.remove(outputName)
             self.versionConfigUpdated |= update
 
-    def determineDependencies(self) -> list:
-        dependencies = []
+    def determineDependencies(self) -> dict:
+        dependencies = {}
+        dependencies['order'] = []
+        dependencies['module'] = {}
         moduleDependencies = {md: m for md, m in self.versionConfig.items() if moduleIsAuthoritative(md)}
-        modules = list(set(moduleDependencies.keys()))
+        packageToModuleMap = {m['packageName']: md for md, m in moduleDependencies.items()}
+        # Record the immediate dependencies
+        for mdir, module in moduleDependencies.items():
+            dependencies['module'][mdir] = set([packageToModuleMap[p] for p in module['map'].keys()])
+        modules = list(moduleDependencies.keys())
         makingProgress = True
         while len(modules) and makingProgress:
             d = []
@@ -440,11 +458,16 @@ class WorkContext:
                             del dependencyMap[packageName]
             moduleDependencies = updateModuleDependencies
             if len(d) > 0:
-                dependencies.append(d)
+                dependencies['order'].append(d)
             else:
                 makingProgress = False
         if not makingProgress:
             raise CLIError("Couldn't determine dependencies for %s" % (", ".join(modules)))
+        # Now walk the dependency list in build order to solve the transitive dependencies
+        for mdir in [dd for d in dependencies['order'] for dd in d]:
+            dependSets = [dependencies['module'][s] for s in dependencies['module'][mdir]]
+            dependencies['module'][mdir] = dependencies['module'][mdir].union(*dependSets)
+
         return dependencies
 
 
@@ -482,10 +505,6 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
                         print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['packageName'],  cModule['version'], mName, mVersion), file=sys.stderr)
                         result = 1
 
-    elif wc.args.command == 'dependency':
-        dependencies = wc.determineDependencies()
-        l = [dd for d in dependencies for dd in d]
-        print(", ".join(l))
     elif wc.args.command == 'add':
         modules = wc.determineVersion(wc.getVersions())
 
@@ -718,12 +737,36 @@ USAGE
                     configUpdated = True
 
         moduleVersionMap = {c['packageName']:str(c['version']) for md, c in versionConfigs.items() if moduleIsAuthoritative(md)}
-        if args.command == 'dependency':
+        if args.command == 'dependency-order' or args.command == 'dependency-array' or args.command == 'dependency-cicache':
             workContext = WorkContext(args, versionConfigs, '.', findMinor)
             workContext.moduleVersionMap = moduleVersionMap
             dependencies = workContext.determineDependencies()
-            l = [dd for d in dependencies for dd in d]
-            print(" ".join(l))
+            moduleDirs = [dd for d in dependencies['order'] for dd in d]
+            if args.command == 'dependency-order':
+                print(" ".join(moduleDirs))
+            elif args.command == 'dependency-array':
+                for md, d in dependencies['module'].items():
+                    print("%s \"%s\"" % (md, " ".join(d)))
+            elif args.command == 'dependency-cicache':
+                prefix = "v1-dep"
+                sep = "--"
+                moduleDirsReversed = moduleDirs.copy()
+                moduleDirsReversed.reverse()
+                # Generate a set of lists (well, tuples so they have constant hashes) of cache key combinations.
+                moduleCacheKeys = {}
+                for md in moduleDirs:
+                    d = dependencies['module'][md]
+                    moduleCacheKeys[md] = set(tuple(d)).union(*[moduleCacheKeys[dd] for dd in d])
+                for md, d in dependencies['module'].items():
+                    modsubs = [dmd for dmd in moduleDirsReversed if dmd in d]
+                    modsubkeys = [("%s%s{{ checksum \"%s.sbtcksm\" }}" % (dmd, sep, dmd)) for dmd in modsubs]
+                    print("%s%s%s%s{{ checksum \"%s.sbtcksum\" }}%s%s" % (prefix, sep, md, sep, md, sep, sep.join(modsubkeys)))
+                    for i in range(len(modsubkeys)):
+                        print("%s%s%s" % (prefix, sep, sep.join(modsubkeys[i:])))
+            else:
+                print('Unrecognized dependency command: %s' % (args.command), file=sys.stderr)
+                exitCode = 2
+
         else:
             for path in modulePaths:
                 workContext = WorkContext(args, versionConfigs, path, findMinor)
