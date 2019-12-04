@@ -121,6 +121,8 @@ def getLabels(repoPath):
             ChiselLabels.oldLabels[oldLabel] = {}
             ChiselLabels.oldLabels[oldLabel]['colors'] = []
             ChiselLabels.oldLabels[oldLabel]['descriptions'] = []
+            ChiselLabels.oldLabels[oldLabel]['repos'] = []
+        ChiselLabels.oldLabels[oldLabel]['repos'].append(repoPath)
         if not oldColor in [l['color'] for l in ChiselLabels.oldLabels[oldLabel]['colors']]:
             ChiselLabels.oldLabels[oldLabel]['colors'].append(d)
         if oldDescription is not None and oldDescription != '' and not oldDescription in [l['description'] for l in ChiselLabels.oldLabels[oldLabel]['descriptions']]:
@@ -173,7 +175,7 @@ def reportCollisions() -> dict:
         else:
             newLabelTuple = ChiselLabels.oldLabelMap[name]
         if newLabelTuple is None:
-            lostLabels.append('losing label: %s' % (name))
+            lostLabels.append('losing label: %s (%s)' % (name, ", ".join(refs['repos'])))
         else:
             newLabelName = ("%s: %s" % (newLabelTuple[0], newLabelTuple[1]))
             if newLabelName in newLabels:
@@ -190,7 +192,7 @@ def reportCollisions() -> dict:
         print(l, file=sys.stderr)
     for l in set(lostLabels):
         print(l, file=sys.stderr)
-
+    sys.stderr.flush()
     return newLabels
 
 def updateLabels(newLabels: dict):
@@ -221,7 +223,8 @@ def pushLabels(repoPath: str, labels: dict):
         description = attributes['description'] if attributes['description'] is not None else ''
         if name in existingLabels:
             l = existingLabels[name]
-            l.update(name, color, description)
+            if l.name != name or l.color != color or l.description != description:
+                l.update(name, color, description)
         else:
             repo.create_label(name, color, description)
 
