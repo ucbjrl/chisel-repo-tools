@@ -757,12 +757,15 @@ USAGE
                 for md in moduleDirs:
                     d = dependencies['module'][md]
                     moduleCacheKeys[md] = set(tuple(d)).union(*[moduleCacheKeys[dd] for dd in d])
+                # We currently only use first-order dependencies (direct module/package dependencies).
+                # If we were to introduce additional jobs to save module/package combinations,
+                #  (i.e., firrtl-interpreter plus treadle post-build caches), we could add their key combination.
                 for md, d in dependencies['module'].items():
+                    print("%s:\n%s%s%s%s{{ checksum \"%s.sbtcksum\" }}" % (md, prefix, sep, md, sep, md))
                     modsubs = [dmd for dmd in moduleDirsReversed if dmd in d]
                     modsubkeys = [("%s%s{{ checksum \"%s.sbtcksm\" }}" % (dmd, sep, dmd)) for dmd in modsubs]
-                    print("%s%s%s%s{{ checksum \"%s.sbtcksum\" }}%s%s" % (prefix, sep, md, sep, md, sep, sep.join(modsubkeys)))
-                    for i in range(len(modsubkeys)):
-                        print("%s%s%s" % (prefix, sep, sep.join(modsubkeys[i:])))
+                    for m in modsubkeys:
+                        print("%s%s%s" % (prefix, sep, m))
             else:
                 print('Unrecognized dependency command: %s' % (args.command), file=sys.stderr)
                 exitCode = 2
