@@ -58,14 +58,17 @@ class CNVersion:
     def bumpMajor(self) -> 'CNVersion':
         someInts = list(self.theInts)
         someInts[1] += 1
-        if someInts[2] is not None:
-            someInts[2] = 0
-        return CNVersion(aVersion=self, theInts=someInts)
+        return self.clearMinor()
 
     def bumpMinor(self) -> 'CNVersion':
         someInts = list(self.theInts)
         if someInts[2] is not None:
             someInts[2] += 1
+        return CNVersion(aVersion=self, theInts=someInts)
+
+    def clearMinor(self) -> 'CNVersion':
+        someInts = list(self.theInts)
+        someInts[2] = 0
         return CNVersion(aVersion=self, theInts=someInts)
 
     def releaseVersion(self) -> str:
@@ -83,6 +86,10 @@ class CNVersion:
         object.__setattr__(self, 'snapshotQualifier', None)
         object.__setattr__(self, 'releaseQualifier', None)
         object.__setattr__(self, 'theInts', tuple([None] * CNVersion.nComponents))
+        # Verify that only one of a snapshot or release qualifier is supplied.
+        if 'snapshotQualifier' in kwargs.keys() and 'releaseQualifier' in kwargs.keys():
+            raise 'only one of snapshotQualifier or releaseQualifier should be supplied: %s' % (kwargs.keys())
+
         aString = kwargs.get('aString', None)
         aVersion = kwargs.get('aVersion', None)
 
@@ -107,18 +114,27 @@ class CNVersion:
             else:
                 raise CLIError('couldn\'t parse string as a version: "%s"' % (aString))
         elif aVersion:
+            # Copy any attributes from the provided version that aren't explicitly supplied.
             for attribute in self.__dict__.keys():
                 val = copy.deepcopy(getattr(aVersion, attribute, None))
                 if isinstance(val, list):
                     val = tuple(val)
-                object.__setattr__(self, attribute, val)
+                if not attribute in kwargs.keys():
+                    object.__setattr__(self, attribute, val)
 
         for attribute in kwargs.keys():
             if attribute in self.__dict__.keys():
                 val = copy.deepcopy(kwargs.get(attribute))
                 if isinstance(val, list):
                     val = tuple(val)
+                # If either a snapshot or release qualifier is supplied, eliminate the other.
+                # We've verified that only one of the two is supplied above.
                 object.__setattr__(self, attribute, val)
+                if attribute == 'snapshotQualifier':
+                    object.__setattr__(self, 'releaseQualifier', None)
+                elif attribute == 'releaseQualifier':
+                    object.__setattr__(self, 'snapshotQualifier', None)
+
         
     def hasMinor(self) -> bool:
         return self.theInts[2] is not None
