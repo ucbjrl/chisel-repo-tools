@@ -280,7 +280,7 @@ class WorkContext:
                         packageName = mm.group('packageName')
                         packageVersion = mm.group('version')
                         myPackageVersionMap[packageName] = packageVersion
-                        if updatePackageVersion:
+                        if updatePackageVersion and not self.args.onlyroot:
                             if packageName not in updatePackageVersion.map:
                                 print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(self.updatePackageVersion.map.keys())))
                             else:
@@ -379,12 +379,19 @@ class WorkContext:
                         vt = self.currentMinorVersionFromGitChangelog(major, modPath, baseFilename)
                         if vt:
                             deducedVersions.append(CNVersion(aVersion=myVersion, theInts=vt.theInts))
+                        if len(deducedVersions) == 0:
+                            # We couldn't determine the minor version, assume it is '0'
+                            deducedVersions.append(myVersion.clearMinor())
+
                     if len(deducedVersions) > 0:
                         for v in deducedVersions[1:]:
                             if v != deducedVersions[0]:
                                 mismatchedVersions.append(v)
                         if len(mismatchedVersions) == 0:
                             myVersion = deducedVersions[0]
+                    else:
+                        raise CLIError("Couldn't determine version for %s" % (filePath))
+
                 possibilities['version'].append(myVersion)
 
                 myPackageName = fileVersion['packageName']
@@ -620,6 +627,7 @@ USAGE
         parser.add_argument('-r', '--release', dest='release', action='store', help='generate release version')
         parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', help='generate snapshot version')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
+        parser.add_argument("--onlyroot", dest="onlyroot", action='store_true', help="only update root versions (not dependencies) [default: %(default)s]")
         parser.add_argument(dest='command', choices=commands.keys())
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
 
