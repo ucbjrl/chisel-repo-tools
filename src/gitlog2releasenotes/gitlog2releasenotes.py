@@ -20,7 +20,7 @@ import traceback
 from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
 from pymongo.mongo_client import MongoClient
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 __all__ = []
 __version__ = 0.1
@@ -58,6 +58,8 @@ class GitLogLine:
         self.mergeRegex = re.compile(r"""^Merge pull request #(?P<pr>(\d+)) from """)
         self.mergeBranchRegex = re.compile(r"""^Merge (remote-tracking )?branch '[^']+' into \S+""")
         self.prRegex = re.compile(r"""^(?P<text>(.+))( \(#(?P<pr>(\d+))\))$""")
+        self.cherryPickedRegex = re.compile(r"""\(cherry picked from commit (?P<commit>([0-9A-Fa-f]+))\)""")
+        self.revertRegex = re.compile(r"""This reverts commit (?P<commit>([0-9A-Fa-f]+))""")
 
     # Analyze a commit log line and return a triple - (commit (sha as text), pull request id (int), text)
     def g2n(self, line):
@@ -88,6 +90,37 @@ class WorkContext:
         self.database = database
         self.file = file
 
+def massageCommitText(relatedCommit):
+    # Eliminate any '\r' in the message, split the result on newlines.
+    body = deque(relatedCommit['commit']['message'].replace('\r', '').split("\n"))
+    g2n = GitLogLine()
+    result = body
+    # Is this a merge?
+    mm = g2n.mergeRegex.match(body[0])
+    if mm:
+        pr = int(mm.group('pr'))
+        if pr:
+            # Remove the first text line (the merge message)
+            result[0] = ""
+            while result[0] == "":
+                del result[0]
+            result[0] = "(#%d) %s" % (pr, result[0])
+    # Remove trailing boiler-plate
+    i = len(result) - 1
+    while i > 0:
+        # Remove trailing "cherrypick" or "revert" text
+        cp = g2n.cherryPickedRegex.match(result[i])
+        rc = g2n.revertRegex.match(result[i])
+        if cp or rc:
+            result[i] = ""
+        if result[i] == "":
+            del result[i]
+        else:
+            break
+        i -= 1
+    return "\n".join(result)
+
+
 def doWork(wc, verbose):
     modName = __name__ + '.doWork'
     g2n = GitLogLine()
@@ -112,6 +145,8 @@ def doWork(wc, verbose):
         (commit, pr, text) = g2n.g2n(line)
         # If there isn't any text, this is a log line we're not interested in (i.e., a merge commit)
         if text:
+            accumulatedText = deque([text])
+            relatedCommitText = []
             if pr is None:
                 # If we couldn't find a pull request number in the log line, look for the matching commit (sha) in the database
                 commitAbbrevMatch = re.compile('^' + commit)
@@ -130,6 +165,7 @@ def doWork(wc, verbose):
                 if pullRequest:
                     # Grab its important fields.
                     title = pullRequest['title']
+                    accumulatedText.appendleft(title)
                     labels = [l['name'] for l in pullRequest['labels']]
                     if labels:
                         for label in list(categories.keys()):
@@ -156,6 +192,19 @@ def doWork(wc, verbose):
                                 # We have **Release Notes** for this PR. Use that as the text.
                                 rnType = 'rn'
                                 text = rnText
+                        # Pull in any commits that are part of this PR, and add their text (suitably massaged).
+                        for relatedCommit in commitDB.find({"pr" : pr}):
+                            cText = massageCommitText(relatedCommit)
+                            if cText:
+                                #  but only if we haven't already added a copy of it.
+                                accumulatedText.append(cText)
+                                if accumulatedText.index(cText) < (len(accumulatedText) - 1):
+                                    # Already in the list
+                                    accumulatedText.pop()
+                                else:
+                                    relatedCommitText.append(cText)
+
+
                     else:
                         rnType = list(releaseNotes[category][pr].keys())[0]
                 else:
@@ -171,7 +220,10 @@ def doWork(wc, verbose):
                 elif rnType == 'c' and text not in categorizedReleaseNotes[pr][rnType]:
                     # If we've seen this PR before, but we don't have **Release Notes** for it, add the commit text if we don't already have it.
                     categorizedReleaseNotes[pr][rnType].append(text)
-                   
+                # If we don't have release notes for this PR, concatenate any related commit text
+                if rnType != 'rn':
+                    categorizedReleaseNotes[pr][rnType] += relatedCommitText
+
             else:
                 # No PR for this commit. Make sure it shows up somewhere
                 releaseNotesNoPR.append((commit, text))
