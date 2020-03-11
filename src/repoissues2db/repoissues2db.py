@@ -16,10 +16,12 @@ import re
 import signal
 import sys
 import traceback
+from datetime import datetime, timezone
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from citSupport.monitorRepos import BaseRepo
 from pymongo.mongo_client import MongoClient
+from pymongo.collection import ReturnDocument
 from github3.search import IssueSearchResult
 from github3.structs import SearchIterator
 
@@ -69,7 +71,7 @@ def doWork(wc, verbose):
     modName = __name__ + '.doWork'
     path = wc.path
     since = wc.since
-    
+
     # Find the local git repo from the path
     repoObj = BaseRepo(path)
     if repoObj is None:
@@ -100,11 +102,28 @@ def doWork(wc, verbose):
         for issue in issues:
             assert isinstance(issue, IssueSearchResult)
             issueId = issue.issue.id
-            try:
-                insertId = issueDB.insert_one(issue.as_dict()).inserted_id
-                print(' '.join([str(issueId), str(insertId)]))
-            except AttributeError:
-                pass
+            num = issue.issue.number
+            # Do we already have an entry for this issue?
+            found = issueDB.find_one({'id': issueId, 'number': num})
+            if not found:
+                try:
+                    insertId = issueDB.insert_one(issue.as_dict()).inserted_id
+                    print('II' + ' '.join([str(issueId), str(insertId)]))
+                except AttributeError:
+                    pass
+            else:
+                dbUpdateAt = datetime.strptime(found['updated_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
+                if dbUpdateAt != issue.issue.updated_at:
+                    try:
+                        updated = issueDB.find_one_and_replace({'id': issueId, 'number': num}, issue.as_dict(), return_document=ReturnDocument.AFTER)
+                        updatedId = updated['_id']
+                        print('UI' + ' '.join([str(issueId), str(updatedId)]))
+                    except AttributeError as err:
+                        print("DB error: {0}".format(err))
+                        raise
+                else:
+                    print('SI' + ' '.join([str(issueId), str(num)]))
+
     if True:
         for dbIssue in issueDB.find({}):
             issueId = dbIssue['number']
@@ -115,26 +134,36 @@ def doWork(wc, verbose):
                 for event in repoIssue.events():
                     event['issue'] = issueId
                     eventId = event.id
-                    try:
-                        insertId = eventDB.insert_one(event.as_dict()).inserted_id._inc
-                        print(' '.join([str(eventId), str(insertId._pid)]))
-                    except AttributeError:
-                        pass
-            if True and isPR:
-                # If the issue is a pull request, grab its associated commits and insert them in the database
-                try:
-                    repoPR = repo.pull_request(issueId)
-                    for shortCommit in repoPR.commits():
-                        commit = shortCommit.as_dict()
-                        commit['pr'] = issueId
-                        commitId = commit['sha']
+                    # Do we already have an entry for this commit?
+                    found = eventDB.find_one({'id': eventId})
+                    if not found:
                         try:
-                            insertId = commitDB.insert_one(commit).inserted_id._inc
-                            print(' '.join([commitId, str(insertId)]))
+                            insertId = eventDB.insert_one(event.as_dict()).inserted_id._inc
+                            print('IE' + ' '.join([str(eventId), str(insertId._pid)]))
                         except AttributeError:
                             pass
-                except:
-                    print('Bang!')
+                    else:
+                        print('SE' + ' '.join([str(eventId), str(issueId)]))
+            if True and isPR:
+                    # If the issue is a pull request, grab its associated commits and insert them in the database
+                    try:
+                        repoPR = repo.pull_request(issueId)
+                        for shortCommit in repoPR.commits():
+                            commit = shortCommit.as_dict()
+                            commit['pr'] = issueId
+                            commitId = commit['sha']
+                            # Do we already have an entry for this commit?
+                            found = commitDB.find_one({'sha': commitId, 'pr': issueId})
+                            if not found:
+                                try:
+                                    insertId = commitDB.insert_one(commit).inserted_id._inc
+                                    print('IC' + ' '.join([commitId, str(insertId)]))
+                                except AttributeError:
+                                    pass
+                            else:
+                                print('SC' + ' '.join([str(commitId), str(issueId)]))
+                    except:
+                        print('Bang!')
                 
 
 
