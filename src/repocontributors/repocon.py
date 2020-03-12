@@ -20,6 +20,7 @@ import sys
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from citSupport.monitorRepos import MonitorRepos
+from functools import cmp_to_key
 
 __all__ = []
 __version__ = 0.1
@@ -40,7 +41,7 @@ class CLIError(Exception):
     def __unicode__(self):
         return self.msg
 
-localRepoNames = [ '/Users/jrl/noArc/clients/ucb/git/ucb-bar/chisel:master']
+localRepoNames = [ '/Users/jrl/noArc/clients/ucb/git/ucb-bar/chisel2:master']
 unweightedLogins = set(['Lawson_Jim', 'Mirolo_Sebastien'])
 doExit = False
 continueOnError = False
@@ -49,7 +50,7 @@ homeDir = os.getcwd()
 
 def sigterm(signum, frame):
     global doExit
-    print 'repocon: signal %d' % (signum)
+    print('repocon: signal %d' % (signum))
     if signum == signal.SIGTERM:
         doExit = True
 
@@ -137,7 +138,7 @@ def canonicalName(name, login, email):
             testl = chiselFixLogin(login)
         # Do we have an email address?
         teste = ''
-        if email and emailAddresses.has_key(email):
+        if email and email in emailAddresses:
             teste = emailAddresses[email]
         # Did we generate a name from the login name?
         if testl and testl != login:
@@ -158,13 +159,13 @@ users = { 'id': {}, 'login': {}, 'name': {}, 'email': {} }
 def addUserInfo(uId, login, name, email, company):
     modName = __name__ + 'addUserInfo'
     thisKey = { 'id': uId, 'login': login, 'name': name, 'email': email }
-    for metaId in users.keys():
+    for metaId in list(users.keys()):
         try:
             thisId = thisKey[metaId]
             if thisId:
                 # Assume we'll want to add this record
                 doAdd = True
-                if not users[metaId].has_key(thisId):
+                if thisId not in users[metaId]:
                     users[metaId][thisId] = []
                 else:
                     # We already have some records. Is this one of them?
@@ -174,8 +175,8 @@ def addUserInfo(uId, login, name, email, company):
                             break
                 if doAdd:
                     users[metaId][thisId].append({'id': uId, 'login': login, 'name': name, 'email': email, 'company': company })
-        except Exception, e:
-            print '%s in %s' % (e, modName)
+        except Exception as e:
+            print('%s in %s' % (e, modName))
             raise(e)
 
 def getUserInfo(uid):
@@ -184,14 +185,14 @@ def getUserInfo(uid):
         u = users['id'][uid][0]
         return u
 
-    except Exception, e:
+    except Exception as e:
         return None
 
 def uniqueUsers():
     modName = __name__ + 'uniqueUsers'
     idMap = {}
-    for metaId in users.keys():
-        for key, vals in users[metaId].iteritems():
+    for metaId in list(users.keys()):
+        for key, vals in users[metaId].items():
             try:
                 if vals and len(vals) > 1:
                     # We've found a duplicate.
@@ -220,19 +221,19 @@ def uniqueUsers():
                                 result = 1
                             return result
 
-                        pref = sorted(vals, cmp=sortVals)[0]
+                        pref = sorted(vals, key=cmp_to_key(sortVals))[0]
                         for val in vals:
                             if val['id'] != pref['id']:
                                 old = val['id']
                                 new = pref['id']
                                 # Do we already have this mapping
-                                if idMap.has_key(old):
+                                if old in idMap:
                                     if idMap[old] != new:
                                         raise CLIError('inconsistent duplicate map (%s, %s) for %d' % (idMap[old], new, old))
                                 else:
                                     idMap[old] = new
-            except Exception, e:
-                print '%s in %s' % (e, modName)
+            except Exception as e:
+                print('%s in %s' % (e, modName))
                 raise(e)
     return idMap
                     
@@ -244,7 +245,7 @@ def doWork(paths, verbose):
     if repos is None:
         exit(1)
     
-    for (repoName, repoObj) in repos.repoMap.iteritems():
+    for (repoName, repoObj) in repos.repoMap.items():
         isRepoLocal = False
         repo = None
         if isRepoLocal:
@@ -265,7 +266,7 @@ def doWork(paths, verbose):
                 contribId = pr.user.login
                 title = pr.title if pr.title and pr.title != '' else pr.body_text
                 files = [f.filename for f in pr.files()]
-                if not contribs.has_key(contribId):
+                if contribId not in contribs:
                     contribs[contribId] = []
                 areas = areasFromFiles(files)
                 contribs[contribId].append({ 'sha': sha, 'title': title, 'files': files, 'areas': areas })
@@ -293,26 +294,26 @@ def doWork(paths, verbose):
                     (first, sep, last) = aName.rpartition(' ')
                     contribId = last + '_' + first
                     title = tCommit.summary
-                    files = tCommit.stats.files.keys()
+                    files = list(tCommit.stats.files.keys())
                 else:
                     commit = repo.commit(tCommit.sha)
                     # If there isn't an author record, this probably originated outside of github
                     if commit.author is None:
-                        author = commit.commit[u'author']
-                        email = author[u'email']
-                        aName = author[u'name']
+                        author = commit.commit['author']
+                        email = author['email']
+                        aName = author['name']
                         contribId = aName if aName else email
                     else:
                         # We'll pick up name and email after we've collected all the logins.
-                        login = commit.author[u'login']
+                        login = commit.author['login']
                         contribId = login
-                    title = commit.commit[u'message']
+                    title = commit.commit['message']
                     sha = commit.sha
                     # Fetch the (normally) missing fields.
-                    files = [f[u'filename'] for f in commit.files]
+                    files = [f['filename'] for f in commit.files]
 
                 name = canonicalName(aName, login, email)
-                if not contribs.has_key(contribId):
+                if contribId not in contribs:
                     contribs[contribId] = []
                     if aName or email:
                         addUserInfo(contribId, login, name, email, '')
@@ -321,13 +322,13 @@ def doWork(paths, verbose):
 #                print '%d, %d, %d\n' % (len(contribs.keys()), len(contribs[contribId]), len(users['id'].keys()))
 #                if len(contribs.keys()) > 5:
 #                    break
-            except Exception, e:
-                print '%s in %s' % (e, modName)
+            except Exception as e:
+                print('%s in %s' % (e, modName))
                 raise(e)
 
         # Go through the contributions and get the author info for non-local repos.
         if not isRepoLocal:
-            for contribId in contribs.keys():
+            for contribId in list(contribs.keys()):
                 # Do we have a GitHub login for this Id?
                 login = contribId
                 ui = getUserInfo(contribId)
@@ -339,10 +340,10 @@ def doWork(paths, verbose):
                         name = canonicalName(user.name, contribId, user.email)
                         addUserInfo(contribId, contribId, name, user.email, user.company)
                     else:
-                        print 'no GutHub user info for - "%s"' % (contribId)
+                        print('no GutHub user info for - "%s"' % (contribId))
                     
         # Go through the contributions and try to coalesce those from the same author.
-        for oldId, newId in uniqueUsers().iteritems():
+        for oldId, newId in uniqueUsers().items():
             contribs[newId] += contribs[oldId]
             del contribs[oldId]
 
@@ -360,10 +361,13 @@ def doWork(paths, verbose):
             if wx != wy:
                 result = wy - wx
             else:
-                result = cmp(x.lower(), y.lower())
+                xlow = x.lower()
+                ylow = y.lower()
+                if xlow != x or ylow != y:
+                    result = sortContributions(xlow, ylow)
             return result
 
-        for contribId in sorted(set(contribs.keys()), cmp=sortContributions):
+        for contribId in sorted(set(contribs.keys()), key=cmp_to_key(sortContributions)):
             ui = getUserInfo(contribId)
             if ui:
                 number = len(contribs[contribId])
@@ -371,9 +375,9 @@ def doWork(paths, verbose):
                 areas = ', '.join(areaSet)
                 info = {'contribs': str(number), 'contribId': ui['id'], 'name': ui['name'], 'company': ui['company'], 'email': ui['email'], 'areas': areas}
                 fields = [info[k] if info[k] else '' for k in ['contribs', 'contribId', 'name', 'company', 'email', 'areas']]
-                print osep.join(fields)
+                print(osep.join(fields))
             else:
-                print 'Could not find "%s" in userInfo' % (contribId)
+                print('Could not find "%s" in userInfo' % (contribId))
 
 def main(argv=None): # IGNORE:C0111
     '''Command line options.'''
@@ -427,7 +431,7 @@ USAGE
     except KeyboardInterrupt:
         ### handle keyboard interrupt ###
         return 0
-    except Exception, e:
+    except Exception as e:
         if DEBUG or TESTRUN:
             raise(e)
         indent = len(program_name) * " "
