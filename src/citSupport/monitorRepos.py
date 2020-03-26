@@ -44,19 +44,25 @@ class BaseRepo():
                 # Otherwise, use the current head.
                 try:
                     branch = repo.head.ref.name
+                    try:
 
-                    # Save the remote tracking branch so we can filter the appropriate PushEvents
-                    self.branch = branch
-                    trackingbranch = repo.heads[branch].tracking_branch()
-                    if trackingbranch:
-                        self.trackingbranch = trackingbranch.remote_head
-                    else:
-                        print('no tracking branch for %s:%s' % (gitrepo, self.branch), file=sys.stderr)
+                        # Save the remote tracking branch so we can filter the appropriate PushEvents
+                        self.branch = branch
+                        trackingbranch = repo.heads[branch].tracking_branch()
+                        if trackingbranch:
+                            self.trackingbranch = trackingbranch.remote_head
+                        else:
+                            print('no tracking branch for %s:%s' % (gitrepo, self.branch), file=sys.stderr)
+                            self.trackingbranch = None
+                    except TypeError as e:
                         self.trackingbranch = None
+                        print(e)
                 except TypeError as e:
                     branch = None
-            remoteUrl = repo.remotes.origin.url
-            self.repo = repo
+                    self.trackingbranch = None
+                    print(e)
+        remoteUrl = repo.remotes.origin.url
+        self.repo = repo
 
         self.connected = False
         self.gh = None
