@@ -282,7 +282,7 @@ class WorkContext:
                         myPackageVersionMap[packageName] = packageVersion
                         if updatePackageVersion and not self.args.onlyroot:
                             if packageName not in updatePackageVersion.map:
-                                print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(self.updatePackageVersion.map.keys())))
+                                print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(updatePackageVersion.map.keys())))
                             else:
                                 newVersion = self.moduleVersionMap[packageName]
                                 if packageVersion != newVersion:
