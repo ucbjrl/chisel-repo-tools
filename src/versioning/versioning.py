@@ -332,6 +332,8 @@ class WorkContext:
         for f in self.files:
             baseFilename = os.path.basename(f)
             modulePath = os.path.dirname(f)
+            if modulePath in self.args.excludePath:
+                continue
             (relRoot, moduleDir) = os.path.split(modulePath)
             dirComponents = PurePath(relRoot).parts
             if moduleDir == 'sbt' and 'rocket-chip' in dirComponents:
@@ -365,6 +367,8 @@ class WorkContext:
             for filePath, fileVersion in module['paths'].items():
                 baseFilename = os.path.basename(filePath)
                 modPath = os.path.dirname(filePath)
+                if modPath in self.args.excludePath:
+                    continue
                 (relRoot, moduleDir) = os.path.split(modPath)
                 myVersion = fileVersion['version']
                 # If we don't have a minor version and we need it, try and deduce it from git tags.
@@ -546,14 +550,15 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
                     wc.versionConfigUpdated = True
     else:
         moduleDir = wc.path
-        module = wc.versionConfig[moduleDir]
-        setVersion = module['version']
-        versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
-        print('%s: %s:%s' % (moduleDir, action, versionString))
-        if wc.versionConfig[moduleDir]['version'] != setVersion:
-            wc.versionConfig[moduleDir]['version'] = setVersion
-            wc.versionConfigUpdated = True
-        wc.writeVersion(moduleDir, module, setVersion)
+        if moduleDir not in wc.args.excludePath:
+            module = wc.versionConfig[moduleDir]
+            setVersion = module['version']
+            versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
+            print('%s: %s:%s' % (moduleDir, action, versionString))
+            if wc.versionConfig[moduleDir]['version'] != setVersion:
+                wc.versionConfig[moduleDir]['version'] = setVersion
+                wc.versionConfigUpdated = True
+            wc.writeVersion(moduleDir, module, setVersion)
     return result
 
 def loadVersionConfigs(configFilename: str) -> dict:
@@ -627,6 +632,7 @@ USAGE
         parser.add_argument('-r', '--release', dest='release', action='store', help='generate release version')
         parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', help='generate snapshot version')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
+        parser.add_argument("-e", "--excludePath", dest="excludePath", action="append", help="exclude a path (add multiple arguments for multiple paths)")
         parser.add_argument("--onlyroot", dest="onlyroot", action='store_true', help="only update root versions (not dependencies) [default: %(default)s]")
         parser.add_argument(dest='command', choices=commands.keys())
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
@@ -661,8 +667,14 @@ USAGE
             print('A "." path causes others to be ignored: (%s)' % (", ".join([p for p in args.paths if p != "."])), file=sys.stderr)
             modulePaths = ['.']
         else:
-            modulePaths = args.paths if len(args.paths) > 0 else versionConfigs.keys()
-
+            modulePaths = args.paths if len(args.paths) > 0 else list(versionConfigs.keys())
+        # If we have an excludePath, use it to modify the modulePaths
+        if args.excludePath:
+            # Use set difference to remove the excluded modules from modulePaths
+            modulePaths = set(modulePaths + args.excludePath) - set(args.excludePath)
+        else:
+            # No excludePath - make it an empty list
+            args.excludePath = []
         # Find those modules for which we don't have any version information (currently unlikely)
         needVersions = set([vk for vk, vi in versionConfigs.items() if 'version' not in vi or vi['version'] is None])
         findMinor = args.findMinor
