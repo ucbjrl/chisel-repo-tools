@@ -132,6 +132,9 @@ class CNVersion:
                 object.__setattr__(self, attribute, val)
                 if attribute == 'snapshotQualifier':
                     object.__setattr__(self, 'releaseQualifier', None)
+                    theInts = list(self.theInts)
+                    theInts[2] = None
+                    object.__setattr__(self, 'theInts', tuple(theInts))
                 elif attribute == 'releaseQualifier':
                     object.__setattr__(self, 'snapshotQualifier', None)
 
