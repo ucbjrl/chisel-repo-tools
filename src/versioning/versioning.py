@@ -56,7 +56,7 @@ homeDir = os.getcwd()
 
 def sigterm(signum, frame):
     global doExit
-    print ('%s: signal %d' % (__name__, signum))
+    print ('%s: signal %d' % (__name__, signum), file=sys.stderr)
     if signum == signal.SIGTERM:
         doExit = True
 
@@ -210,6 +210,7 @@ class WorkContext:
         self.moduleVersionMap = None
         self.recurse = True
         self.dryRun = args.dryRun
+        self.output = args.output
 
     def currentMinorVersionFromGitTags(self, major: str, path: str) -> CNVersion:
         vt = None
@@ -282,7 +283,7 @@ class WorkContext:
                         myPackageVersionMap[packageName] = packageVersion
                         if updatePackageVersion and not self.args.onlyroot:
                             if packageName not in updatePackageVersion.map:
-                                print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(updatePackageVersion.map.keys())))
+                                print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(updatePackageVersion.map.keys())), file=sys.stderr)
                             else:
                                 newVersion = self.moduleVersionMap[packageName]
                                 if packageVersion != newVersion:
@@ -546,7 +547,7 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
                     wc.versionConfig[modulePath] = cModule
                     localUpdate = True
                 if localUpdate:
-                    print('verify - add: %s %s %s:%s' % (modulePath, action, mName, mVersion))
+                    print('verify - add: %s %s %s:%s' % (modulePath, action, mName, mVersion), file=sys.stderr)
                     wc.versionConfigUpdated = True
     else:
         moduleDir = wc.path
@@ -554,7 +555,7 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
             module = wc.versionConfig[moduleDir]
             setVersion = module['version']
             versionString = setVersion.releaseVersion() if setVersion.isRelease() else setVersion.snapshotVersion()
-            print('%s: %s:%s' % (moduleDir, action, versionString))
+            print('%s: %s:%s' % (moduleDir, action, versionString), file=sys.stderr)
             if wc.versionConfig[moduleDir]['version'] != setVersion:
                 wc.versionConfig[moduleDir]['version'] = setVersion
                 wc.versionConfigUpdated = True
@@ -633,6 +634,7 @@ USAGE
         parser.add_argument('-s', '--snapshot', dest='snapshot', action='store', help='generate snapshot version')
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument("-e", "--excludePath", dest="excludePath", action="append", help="exclude a path (add multiple arguments for multiple paths)")
+        parser.add_argument("-o", "--output", dest="output", nargs='?', type=FileType('w'), action="store", help="write output to specified file", default=sys.stdout)
         parser.add_argument("--onlyroot", dest="onlyroot", action='store_true', help="only update root versions (not dependencies) [default: %(default)s]")
         parser.add_argument(dest='command', choices=commands.keys())
         parser.add_argument(dest='paths', help='paths to search for files to be manipulated (build.s*)', nargs='*')
@@ -643,7 +645,7 @@ USAGE
         verbose = args.verbose
 
         if verbose > 0:
-            print("Verbose mode on")
+            print("Verbose mode on", file=sys.stderr)
 
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
@@ -763,10 +765,10 @@ USAGE
             dependencies = workContext.determineDependencies()
             moduleDirs = [dd for d in dependencies['order'] for dd in d]
             if args.command == 'dependency-order':
-                print(" ".join(moduleDirs))
+                print(" ".join(moduleDirs), file=workContext.output)
             elif args.command == 'dependency-array':
                 for md, d in dependencies['module'].items():
-                    print("%s \"%s\"" % (md, " ".join(d)))
+                    print("%s \"%s\"" % (md, " ".join(d)), file=workContext.output)
             elif args.command == 'dependency-cicache':
                 prefix = "v1-dep"
                 sep = "--"
@@ -781,11 +783,11 @@ USAGE
                 # If we were to introduce additional jobs to save module/package combinations,
                 #  (i.e., firrtl-interpreter plus treadle post-build caches), we could add their key combination.
                 for md, d in dependencies['module'].items():
-                    print("%s:\n%s%s%s%s{{ checksum \"%s.sbtcksum\" }}" % (md, prefix, sep, md, sep, md))
+                    print("%s:\n%s%s%s%s{{ checksum \"%s.sbtcksum\" }}" % (md, prefix, sep, md, sep, md), file=workContext.output)
                     modsubs = [dmd for dmd in moduleDirsReversed if dmd in d]
                     modsubkeys = [("%s%s{{ checksum \"%s.sbtcksm\" }}" % (dmd, sep, dmd)) for dmd in modsubs]
                     for m in modsubkeys:
-                        print("%s%s%s" % (prefix, sep, m))
+                        print("%s%s%s" % (prefix, sep, m), file=workContext.output)
             else:
                 print('Unrecognized dependency command: %s' % (args.command), file=sys.stderr)
                 exitCode = 2
@@ -809,7 +811,7 @@ USAGE
                     possibleVersions = set(vl)
                     if len(possibleVersions) > 1:
                         ambiguousModuleDirs = [(md, v['version'], f) for md, m in modules.items() if md in modulePaths and m['packageName'] == mName for f, v in list(m['paths'].items()) if v['version'] in possibleVersions]
-                        print("Ambigous versions for %s: %s" % (mName, ', '.join([("%s: %s - %s" % (a[0], a[1], a[2])) for a in ambiguousModuleDirs])))
+                        print("Ambigous versions for %s: %s" % (mName, ', '.join([("%s: %s - %s" % (a[0], a[1], a[2])) for a in ambiguousModuleDirs])), file=sys.stderr)
 
             if not args.dryRun and configUpdated:
                 dumpVersionConfigs(configFilename, versionConfigs)
@@ -823,7 +825,7 @@ USAGE
         sys.exit(1)
     except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
-        print (''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+        print (''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)), file=sys.stderr)
         if not(DEBUG or TESTRUN):
             indent = len(program_name) * " "
             sys.stderr.write(program_name + ": " + repr(e) + "\n")
