@@ -475,10 +475,17 @@ class WorkContext:
                 makingProgress = False
         if not makingProgress:
             raise CLIError("Couldn't determine dependencies for %s" % (", ".join(modules)))
+        # We want a stable dependency order. We could get one by simply sorting dependencies alphabetically,
+        #  but instead, we generate a dictionary keyed by module, with values determined by build order,
+        #  then use this to sort dependencies.
+        order = {}
+        buildOrder = 1
         # Now walk the dependency list in build order to solve the transitive dependencies
         for mdir in [dd for d in dependencies['order'] for dd in d]:
+            order[mdir] = buildOrder
             dependSets = [dependencies['module'][s] for s in dependencies['module'][mdir]]
-            dependencies['module'][mdir] = dependencies['module'][mdir].union(*dependSets)
+            dependencies['module'][mdir] = sorted(dependencies['module'][mdir].union(*dependSets), key=lambda dep: order[dep])
+            buildOrder += 1
 
         return dependencies
 
