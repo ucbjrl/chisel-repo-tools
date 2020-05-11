@@ -246,7 +246,8 @@ def doWork(paths, verbose):
         exit(1)
     
     for (repoName, repoObj) in repos.repoMap.items():
-        isRepoLocal = False
+        print(repoName)
+        isRepoLocal = True
         repo = None
         if isRepoLocal:
             repo = repoObj.repo
@@ -285,7 +286,7 @@ def doWork(paths, verbose):
             login = None
             try:
                 if isRepoLocal:
-                    sha = tCommit.sha
+                    sha = tCommit.hexsha
                     email = tCommit.author.email
                     aName = tCommit.author.name
                     # 'name' may not be unique, but the same user may have multiple email addresses.
@@ -344,14 +345,17 @@ def doWork(paths, verbose):
                     
         # Go through the contributions and try to coalesce those from the same author.
         for oldId, newId in uniqueUsers().items():
-            contribs[newId] += contribs[oldId]
-            del contribs[oldId]
+            if newId in contribs and oldId in contribs:
+                contribs[newId] += contribs[oldId]
+                del contribs[oldId]
 
         osep = '\t'
+        tryLower = False
         def weight(x):
             w = 0
             if x not in unweightedLogins:
-                w = len(contribs[x])
+                if x in contribs.keys():
+                    w = len(contribs[x])
             return w
                 
         def sortContributions(x, y):
@@ -360,7 +364,7 @@ def doWork(paths, verbose):
             wy = weight(y)
             if wx != wy:
                 result = wy - wx
-            else:
+            elif tryLower:
                 xlow = x.lower()
                 ylow = y.lower()
                 if xlow != x or ylow != y:
@@ -373,8 +377,8 @@ def doWork(paths, verbose):
                 number = len(contribs[contribId])
                 areaSet = areasFromChanges(contribs[contribId])
                 areas = ', '.join(areaSet)
-                info = {'contribs': str(number), 'contribId': ui['id'], 'name': ui['name'], 'company': ui['company'], 'email': ui['email'], 'areas': areas}
-                fields = [info[k] if info[k] else '' for k in ['contribs', 'contribId', 'name', 'company', 'email', 'areas']]
+                info = {'contribs': str(number), 'contribId': ui['id'], 'name': ui['name'], 'company': ui['company'], 'email': ui['email'], 'areas': areas, 'repo' : repoName}
+                fields = [info[k] if info[k] else '' for k in ['contribs', 'contribId', 'name', 'email', 'repo']]
                 print(osep.join(fields))
             else:
                 print('Could not find "%s" in userInfo' % (contribId))
