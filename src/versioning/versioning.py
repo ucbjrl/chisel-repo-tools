@@ -451,9 +451,18 @@ class WorkContext:
         dependencies['module'] = {}
         moduleDependencies = {md: m for md, m in self.versionConfig.items() if moduleIsAuthoritative(md)}
         packageToModuleMap = {m['packageName']: md for md, m in moduleDependencies.items()}
-        # Record the immediate dependencies
-        for mdir, module in moduleDependencies.items():
-            dependencies['module'][mdir] = set([packageToModuleMap[p] for p in module['map'].keys()])
+        # Record the immediate dependencies, skipping those modules that aren't in the packageToModuleMap
+        # We iterate over a copy of the map since we can't modify it during iteration.
+        immediateModuleDependencies = copy.deepcopy(moduleDependencies)
+        for mdir, module in immediateModuleDependencies.items():
+            dependencies['module'][mdir] = set()
+            for p in module['map'].keys():
+                if p in packageToModuleMap:
+                    dependencies['module'][mdir].update(set([packageToModuleMap[p]]))
+                else:
+                    del moduleDependencies[mdir]['map'][p]
+                    print("Skipping un-versioned module %s" % (p), file=sys.stderr)
+
         modules = list(moduleDependencies.keys())
         makingProgress = True
         while len(modules) and makingProgress:
