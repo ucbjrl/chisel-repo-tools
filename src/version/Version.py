@@ -58,7 +58,10 @@ class CNVersion:
     def bumpMajor(self) -> 'CNVersion':
         someInts = list(self.theInts)
         someInts[1] += 1
-        return self.clearMinor()
+        # If this is a SNAPSHOT version, don't touch the existing minor version (None).
+        if someInts[2] is not None:
+            someInts[2] = 0
+        return CNVersion(aVersion=self, theInts=someInts)
 
     def bumpMinor(self) -> 'CNVersion':
         someInts = list(self.theInts)
