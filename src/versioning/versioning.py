@@ -509,7 +509,7 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
     action = '(would set)' if wc.dryRun else 'set'
 
     moduleDirs = list(wc.versionConfig.keys())
-    if wc.args.command == 'verify':
+    if wc.args.command == 'verify' or wc.args.command == 'read':
         modules = wc.determineVersion(wc.getVersions())
 
         for modulePath, module in modules.items():
@@ -530,8 +530,13 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
                 else:
                     cModule = wc.versionConfig[modulePath]
                     if cModule['version'] != mVersion or cModule['packageName'] != mName:
-                        print('verify: %s - %s (%s) != %s (%s)' % (modulePath, cModule['packageName'],  cModule['version'], mName, mVersion), file=sys.stderr)
-                        result = 1
+                        print('%s: %s - %s (%s) != %s (%s)' % (wc.args.command, modulePath, cModule['packageName'],  cModule['version'], mName, mVersion), file=sys.stderr)
+                        if wc.args.command == 'read':
+                            wc.versionConfig[modulePath]['packageName'] = mName
+                            wc.versionConfig[modulePath]['version'] = mVersion
+                            wc.versionConfigUpdated = True
+                        else:
+                            result = 1
 
     elif wc.args.command == 'add':
         modules = wc.determineVersion(wc.getVersions())
