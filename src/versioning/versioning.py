@@ -95,7 +95,9 @@ class ScalaText:
 
 mapRegex = {
     'begin' : re.compile(r'\bval defaultVersions\s*=\s*(Map|Seq)\('),
-    'entry' : re.compile(r'(?P<prefix>(.*"(?P<packageName>([\w-]+))"\s*->\s*"))(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
+    # Support both old ( "package" -> "version") and new (ModuleID) specifications
+    'oldentry' : re.compile(r'(?P<prefix>(.*))"(?P<packageName>([\w-]+))"\s*->\s*"(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
+    'moduleId' : re.compile(r'(?P<prefix>(.*))"(?P<organizationName>([^"]*))"\s*%%\s*"(?P<packageName>([\w-]+))"\s*%\s*"(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>(".*))$'),
     'end' : re.compile(r'\)')
 }
 
@@ -106,7 +108,7 @@ versionFiles = {
         'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bversion\s*:=\s*")(?P<version>(' + CNVersion.versionRegex.pattern + r'))(?P<suffix>".*)$'),
         'packageNameRegex' : re.compile(r'^\s*name\s*:=\s*"(?P<packageName>[^"]+)"'),
         'mapBeginRegex' : mapRegex['begin'],
-        'mapEntryRegex' : mapRegex['entry'],
+        'mapEntryRegex' : [ mapRegex['oldentry'],  mapRegex['moduleId']],
         'mapEndRegex' : mapRegex['end']
     },
     'build.sc' : {
@@ -115,7 +117,7 @@ versionFiles = {
         'versionLineRegex' : re.compile(r'^(?P<prefix>.*\bdef publishVersion\s*=\s*")(?P<version>(' + CNVersion.versionRegex.pattern + r'))(?P<suffix>".*)$'),
         'packageNameRegex' : re.compile(r'^\s*override\s+def\s+artifactName\s*=\s*"(?P<packageName>[^"]+)"'),
         'mapBeginRegex' : mapRegex['begin'],
-        'mapEntryRegex' : mapRegex['entry'],
+        'mapEntryRegex' : [ mapRegex['oldentry'],  mapRegex['moduleId']],
         'mapEndRegex' : mapRegex['end']
     }
 }
@@ -252,7 +254,7 @@ class WorkContext:
     def analyzeFileLines(self, fileops, input, updatePackageVersion: PackageVersion = None, output = None) -> PackageVersion:
         versionLineRegex = fileops['versionLineRegex']
         mapBeginRegex = fileops['mapBeginRegex']
-        mapEntryRegex = fileops['mapEntryRegex']
+        mapEntryRegex = None
         mapEndRegex = fileops['mapEndRegex']
         decomment = fileops['decomment']
         packageNameRegex = fileops['packageNameRegex']
@@ -274,23 +276,35 @@ class WorkContext:
                 if mm:
                     inMap = True
             if inMap:
-                mm = mapEntryRegex.search(test)
-                if mm:
-                    mm = mapEntryRegex.search(line)
+                # Have we determined which flavor of defaultVersions is in use?
+                if mapEntryRegex is None:
+                    entryRegexes = []
+                    if isinstance(fileops['mapEntryRegex'], list):
+                        entryRegexes = fileops['mapEntryRegex']
+                    else:
+                        entryRegexes = [fileops['mapEntryRegex']]
+                    for mapEntryrx in entryRegexes:
+                        if mapEntryrx.search(test):
+                            mapEntryRegex = mapEntryrx
+                            break
+                if mapEntryRegex:
+                    mm = mapEntryRegex.search(test)
                     if mm:
-                        packageName = mm.group('packageName')
-                        packageVersion = mm.group('version')
-                        myPackageVersionMap[packageName] = packageVersion
-                        if updatePackageVersion and not self.args.onlyroot:
-                            if packageName not in updatePackageVersion.map:
-                                print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(updatePackageVersion.map.keys())), file=sys.stderr)
-                            else:
-                                newVersion = self.moduleVersionMap[packageName]
-                                if packageVersion != newVersion:
-                                    prefix = mm.group('prefix')
-                                    suffix = mm.group('suffix')
-                                    line = prefix + newVersion + suffix
-                                    update = True
+                        mm = mapEntryRegex.search(line)
+                        if mm:
+                            packageName = mm.group('packageName')
+                            packageVersion = mm.group('version')
+                            myPackageVersionMap[packageName] = packageVersion
+                            if updatePackageVersion and not self.args.onlyroot:
+                                if packageName not in updatePackageVersion.map:
+                                    print("%s not in updatePackageVersion.map (%s)" % (packageName, ", ".join(updatePackageVersion.map.keys())), file=sys.stderr)
+                                else:
+                                    newVersion = self.moduleVersionMap[packageName]
+                                    if packageVersion != newVersion:
+                                        prefix = mm.group('prefix')
+                                        suffix = mm.group('suffix')
+                                        line = prefix + newVersion + suffix
+                                        update = True
                 mm = mapEndRegex.search(test)
                 if mm:
                     inMap = False
