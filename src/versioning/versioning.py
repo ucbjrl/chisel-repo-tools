@@ -551,6 +551,18 @@ def doWork(wc: dict, authoritativeModules: dict) -> int:
                             wc.versionConfigUpdated = True
                         else:
                             result = 1
+                    if wc.args.command != 'read':
+                        # Verify that the versions mentioned in dependencies match the official ones.
+                        for buildFile,depMap in module['paths'].items():
+                            for dModule, dVersion in depMap['map'].items():
+                                if dModule not in authoritativeModules:
+                                    print('verify: %s isn\'t in version cache' % dModule, file=sys.stderr)
+                                else:
+                                    aModule = authoritativeModules[dModule]
+                                    if dVersion != str(aModule['version']):
+                                        print('%s: %s - %s (%s) != %s (%s)' % (wc.args.command, buildFile, aModule['packageName'],  aModule['version'], dModule, dVersion), file=sys.stderr)
+                                        result = 1
+
 
     elif wc.args.command == 'add':
         modules = wc.determineVersion(wc.getVersions())
