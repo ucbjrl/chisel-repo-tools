@@ -23,6 +23,7 @@ from pathlib import Path, PurePath
 from argparse import ArgumentParser, FileType
 from argparse import RawDescriptionHelpFormatter
 from functools import reduce
+from subprocess import PIPE
 
 from version.Version import CNVersion
 from citSupport.monitorRepos import BaseRepo
@@ -217,7 +218,7 @@ class WorkContext:
 
     def currentMinorVersionFromGitTags(self, major: str, path: str) -> CNVersion:
         vt = None
-        proc = subprocess.run(['git', 'tag', '-l'], cwd=path, capture_output=True, check=True, text=True)
+        proc = subprocess.run(['git', 'tag', '-l'], cwd=path, stdout=PIPE, stderr=PIPE, check=True, universal_newlines=True)
         if proc.returncode == 0:
             majorMatch = re.compile(re.escape(major) + r'\.(?P<minor>(\d+))(-|\b)')
             tags = proc.stdout.split('\n')
@@ -236,7 +237,7 @@ class WorkContext:
         # Look in the git change log for the first version with a minor revision
         minorRE = r'\.[0-9]+'
         minorRevisionRE = versionTag + '"' + re.escape(major) + minorRE
-        proc = subprocess.run(['git', 'log', '-m', '-p', '-G' + minorRevisionRE, 'build.sbt'], cwd=self.path, capture_output=True, check=True, text=True)
+        proc = subprocess.run(['git', 'log', '-m', '-p', '-G' + minorRevisionRE, 'build.sbt'], cwd=self.path, stdout=PIPE, stderr=PIPE, check=True, universal_newlines=True)
         if proc.returncode == 0:
             changes = proc.stdout.split('\n')
             candidates = filter(versionLineRegex.search, changes)
