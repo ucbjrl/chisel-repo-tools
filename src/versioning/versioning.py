@@ -97,8 +97,8 @@ class ScalaText:
 mapRegex = {
     'begin' : re.compile(r'\bval defaultVersions\s*=\s*(Map|Seq)\('),
     # Support both old ( "package" -> "version") and new (ModuleID) specifications
-    'oldentry' : re.compile(r'(?P<prefix>(.*))"(?P<packageName>([\w-]+))"\s*->\s*"(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>("(?P<lineend>(.*))))$'),
-    'moduleId' : re.compile(r'(?P<prefix>(.*))"(?P<organizationName>([^"]*))"\s*%%\s*"(?P<packageName>([\w-]+))"\s*%\s*"(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>("(?P<lineend>(.*))))$'),
+    'oldentry' : re.compile(r'(?P<prefix>(.*)"(?P<packageName>([\w-]+))"\s*->\s*")(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>("(?P<lineend>(.*))))$'),
+    'moduleId' : re.compile(r'(?P<prefix>(.*)"(?P<organizationName>([^"]*))"\s*%%\s*"(?P<packageName>([\w-]+))"\s*%\s*")(?P<version>(' + CNVersion.versionRegex.pattern + '))(?P<suffix>("(?P<lineend>(.*))))$'),
     'end' : re.compile(r'\)')
 }
 
