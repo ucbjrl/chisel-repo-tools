@@ -415,6 +415,9 @@ class WorkContext:
                                 mismatchedVersions.append(v)
                         if len(mismatchedVersions) == 0:
                             myVersion = deducedVersions[0]
+                        else:
+                            choices = ','.join([str(d) for d in deducedVersions])
+                            raise CLIError("Couldn't determine version for %s (%s)" % (filePath, choices))
                     else:
                         raise CLIError("Couldn't determine version for %s" % (filePath))
 
@@ -437,6 +440,11 @@ class WorkContext:
                             mismatched[key].append(v)
                     if len(mismatched[key]) == 0:
                         module[key] = possibilities[key][0]
+                    else:
+                        choices = ','.join([str(d) for d in possibilities[key]])
+                        raise CLIError("Couldn't determine %s for %s (%s)" % (key, module['packageName'], choices))
+                else:
+                    raise CLIError("Couldn't determine %s for %s" % (key, module['packageName']))
 
         return (modules)
 
