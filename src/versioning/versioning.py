@@ -380,6 +380,23 @@ class WorkContext:
         Determine the version of a module.
         :return: a dictionary containing module names and versions for any modules found beneath the specified path.
         """
+        def disambiguatePossibilities(key: str, possibilities: dict, best: str):
+            theChoice = {}
+            bestChoice = None
+            i = 0
+            choices = []
+            # Assume the best choice will be value associated with a package name,
+            #  matching the module directory name.
+            for choice in possibilities['packageName']:
+                if choice == best:
+                    choices.append(i)
+                i += 1
+            if len(choices) == 1:
+                bestChoice = choices[0]
+                return possibilities[key][bestChoice]
+            else:
+                return None
+
         packageKeys = ['packageName', 'version', 'map']
         for modulePath, module in modules.items():
 
@@ -416,8 +433,12 @@ class WorkContext:
                         if len(mismatchedVersions) == 0:
                             myVersion = deducedVersions[0]
                         else:
-                            choices = ','.join([str(d) for d in deducedVersions])
-                            raise CLIError("Couldn't determine version for %s (%s)" % (filePath, choices))
+                            possibility = disambiguatePossibilities(key, possibilities, moduleDir)
+                            if possibility != None:
+                                myVersion = possibility
+                            else:
+                                choices = ','.join([str(d) for d in deducedVersions])
+                                raise CLIError("Couldn't determine version for %s (%s)" % (filePath, choices))
                     else:
                         raise CLIError("Couldn't determine version for %s" % (filePath))
 
@@ -441,8 +462,12 @@ class WorkContext:
                     if len(mismatched[key]) == 0:
                         module[key] = possibilities[key][0]
                     else:
-                        choices = ','.join([str(d) for d in possibilities[key]])
-                        raise CLIError("Couldn't determine %s for %s (%s)" % (key, module['packageName'], choices))
+                        possibility = disambiguatePossibilities(key, possibilities, moduleDir)
+                        if possibility != None:
+                            module[key] = possibility
+                        else:
+                            choices = ','.join([str(d) for d in possibilities[key]])
+                            raise CLIError("Couldn't determine %s for %s (%s)" % (key, module['packageName'], choices))
                 else:
                     raise CLIError("Couldn't determine %s for %s" % (key, module['packageName']))
 
