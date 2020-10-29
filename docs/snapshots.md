@@ -2,7 +2,7 @@
 
 # Snapshot (from master) Preparation Details (07/27/20)
 
-This assumes that changes in master need to be manually merged with the Z.Y.x current release branch. 
+#### This assumes that changes in master need to be manually merged with the Z.Y.x current release branch. 
 
 ## 1. Set up environment
 source ~/.virtualenvs/cit3/bin/activate

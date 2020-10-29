@@ -11,7 +11,13 @@ export PATH=$REPOTOOLS/scripts:$REPOTOOLS/src:$PATH
 WORKDIR=$1
 cd $WORKDIR
 
+if [ -z "$PYTHONPATH" ] ; then
+  export PYTHONPATH=$REPOTOOLS/src
+fi
 
+if [ -z "$VERSIONING" ] ; then
+  export VERSIONING=$REPOTOOLS/src/versioning/versioning.py
+fi
 
 source run_and_check.sh
 
