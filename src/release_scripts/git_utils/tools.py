@@ -66,3 +66,25 @@ def run_make_clean():
         exit(1)
 
     print(f"make clean complete")
+
+
+def run_make_install():
+    """run make install"""
+
+    command_result = subprocess.run(["make", "-j8", "install"], text=True, capture_output=True)
+    if command_result.returncode != 0:
+        print(f"make install failed")
+        exit(1)
+
+    print(f"make install complete")
+
+
+def run_make_test():
+    """run make test"""
+
+    command_result = subprocess.run(["make", "-j8", "test"]) # , text=True, capture_output=True)
+    if command_result.returncode != 0:
+        print(f"make install failed")
+        exit(1)
+
+    print(f"make install complete")
