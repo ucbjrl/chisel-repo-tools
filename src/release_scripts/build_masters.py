@@ -10,16 +10,16 @@ from release_scripts.git_utils.tools import Tools
 def usage():
     print(f"Usage: {sys.argv[0]} -repo <repo-dir> [options]")
     print(f"options are:")
-    print(f"     --start_step <start_step>")
-    print(f"     --stop_step <stop_step>")
+    print(f"     --start-step <start_step>")
+    print(f"     --stop-step <stop_step>")
 
 
 def main():
     try:
         opts, args = getopt.getopt(
             sys.argv[1:],
-            "hr:s:e:",
-            ["help", "repo=", "start_step=", "stop_step="]
+            "chr:s:e:",
+            ["help", "repo=", "start-step=", "stop-step=", "clear-logs"]
         )
     except getopt.GetoptError as err:
         print(err)
@@ -33,10 +33,10 @@ def main():
     for option, value in opts:
         if option in ("--repo", "-r"):
             current_dir = value
-        elif option in ("--start_step", "-s"):
-            start_step = value
-        elif option in ("--stop_step", "-e"):
-            stop_step = value
+        elif option in ("--start-step", "-s"):
+            start_step = int(value)
+        elif option in ("--stop-step", "-e"):
+            stop_step = int(value)
         else:
             print(f"Unhandled command line option: {option}")
             usage()
@@ -48,13 +48,13 @@ def main():
         usage()
         exit(1)
 
+    os.chdir(current_dir)
+
     tools = Tools("build_masters")
     tools.set_start_step(start_step)
     tools.set_stop_step(stop_step)
 
     tools.checkout_branch(1, "master")
-
-    exit(1)
 
     tools.run_pull(2)
 
@@ -66,6 +66,7 @@ def main():
 
     tools.run_make_test(6)
 
+    tools.git_add(7)
 
 if __name__ == "__main__":
     main()

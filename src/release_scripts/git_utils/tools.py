@@ -9,28 +9,25 @@ def run_this_step(step_function):
     """
     Conditionally runs a step
     """
+
     def wrapper(*args, **kwargs):
         tool_object = args[0]
         step_number = args[1]
         start_step = getattr(tool_object, 'get_start_step')(tool_object)
         stop_step = getattr(tool_object, 'get_stop_step')(tool_object)
 
-        print(f"step function {step_function} type {str(step_function)}")
-        function_name = str(step_function).split(" ")[1].split('.')[1]
-        print(f"functioin name {function_name}")
-
         if start_step <= step_number <= stop_step:
             print(f"running step {step_number}")
-            print(f"step {step_function(*args, **kwargs)}")
+            step_function(*args, **kwargs)
         else:
             print(f"skipping step {step_number}")
+        # function_name = str(step_function).split(" ")[1].split('.')[1]
+        # print(f"functioin name {function_name}")
         # print(f"step, start, stop {step_number} {start_step} { stop_step}")
         # print(f"object {dir(tool_object)}")
         # print(f"object {getattr(tool_object, 'get_start_step')(tool_object)}")
         # print(f"step {step_function(*args, **kwargs)}")
         # print(step_function)
-
-        exit(1)
 
     return wrapper
 
@@ -50,6 +47,8 @@ class Tools:
             exit(1)
 
         self.start_step, self.stop_step = -1, 1000
+        self.current_function = ""
+        self.current_log_file = ""
 
     def set_start_step(self, start_step):
         self.start_step = start_step
@@ -92,10 +91,10 @@ class Tools:
         print(f"Now on branch {branch_name}")
 
     @run_this_step
-    def run_pull(self, step_number: int) -> None:
+    def git_add(self, step_number: int) -> None:
         """runs git pull"""
 
-        function_name = "run_pull"
+        function_name = "git_add"
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
@@ -156,7 +155,7 @@ class Tools:
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j8 -f Makefile clean install failed, see {log_name} for details")
+            print(f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {log_name} for details")
             exit(1)
 
         print(f"make clean install complete")
