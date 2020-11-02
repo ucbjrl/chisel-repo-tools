@@ -15,14 +15,16 @@ def run_this_step(step_function):
         step_number = args[1]
         start_step = getattr(tool_object, 'get_start_step')(tool_object)
         stop_step = getattr(tool_object, 'get_stop_step')(tool_object)
+        function_name = str(step_function).split(" ")[1].split('.')[1]
+        getattr(tool_object, 'set_current_function_name')(function_name)
+        # print(f"function name {function_name}")
 
         if start_step <= step_number <= stop_step:
             print(f"running step {step_number}")
             step_function(*args, **kwargs)
         else:
             print(f"skipping step {step_number}")
-        # function_name = str(step_function).split(" ")[1].split('.')[1]
-        # print(f"functioin name {function_name}")
+
         # print(f"step, start, stop {step_number} {start_step} { stop_step}")
         # print(f"object {dir(tool_object)}")
         # print(f"object {getattr(tool_object, 'get_start_step')(tool_object)}")
@@ -62,6 +64,12 @@ class Tools:
     def get_stop_step(self, stop_step):
         return self.stop_step
 
+    def get_current_function_name(self):
+        return self.current_function_name
+
+    def set_current_function_name(self, function_name):
+        self.current_function_name = function_name
+
     def check_step(self, step_number: int) -> bool:
         step_number >= self.start_step and step_number <= self.stop_step
 
@@ -91,10 +99,10 @@ class Tools:
         print(f"Now on branch {branch_name}")
 
     @run_this_step
-    def git_add(self, step_number: int) -> None:
+    def git_pull(self, step_number: int) -> None:
         """runs git pull"""
 
-        function_name = "git_add"
+        function_name = "git_pull"
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
@@ -106,6 +114,40 @@ class Tools:
             exit(1)
 
         print(f"git pull complete")
+
+    @run_this_step
+    def git_commit(self, step_number: int, commit_message: str) -> None:
+        """runs git commit"""
+
+        function_name = "git_commit"
+        log_name = self.step_log_name(step_number, function_name)
+
+        command_result = subprocess.run(
+            f"git commit -m '{commit_message}' &> {log_name}",
+            shell=True,
+            capture_output=False)
+        if command_result.returncode != 0:
+            print(f"git commit failed, see {log_name} for details")
+            exit(1)
+
+        print(f"git commit complete")
+
+    @run_this_step
+    def git_add(self, step_number: int) -> None:
+        """runs git pull"""
+
+        function_name = "git_add"
+        log_name = self.step_log_name(step_number, function_name)
+
+        command_result = subprocess.run(
+            f"git add &> {log_name}",
+            shell=True,
+            capture_output=False)
+        if command_result.returncode != 0:
+            print(f"git add failed, see {log_name} for details")
+            exit(1)
+
+        print(f"git add complete")
 
     @run_this_step
     def run_submodule_update_recursive(self, step_number):
@@ -155,7 +197,8 @@ class Tools:
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {log_name} for details")
+            print(
+                f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {log_name} for details")
             exit(1)
 
         print(f"make clean install complete")

@@ -56,7 +56,7 @@ def main():
 
     tools.checkout_branch(1, "master")
 
-    tools.run_pull(2)
+    tools.git_pull(2)
 
     tools.run_submodule_update_recursive(3)
 
@@ -67,6 +67,9 @@ def main():
     tools.run_make_test(6)
 
     tools.git_add(7)
+
+    tools.git_commit(8, "Bump master branches")
+
 
 if __name__ == "__main__":
     main()
