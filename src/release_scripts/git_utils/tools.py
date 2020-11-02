@@ -10,11 +10,14 @@ def run_this_step(step_function):
     Conditionally runs a step
     """
     def wrapper(*args, **kwargs):
-        print(f"arg1 {args[0]}")
         tool_object = args[0]
         step_number = args[1]
         start_step = getattr(tool_object, 'get_start_step')(tool_object)
         stop_step = getattr(tool_object, 'get_stop_step')(tool_object)
+
+        print(f"step function {step_function} type {str(step_function)}")
+        function_name = str(step_function).split(" ")[1].split('.')[1]
+        print(f"functioin name {function_name}")
 
         if start_step <= step_number <= stop_step:
             print(f"running step {step_number}")
@@ -88,6 +91,7 @@ class Tools:
 
         print(f"Now on branch {branch_name}")
 
+    @run_this_step
     def run_pull(self, step_number: int) -> None:
         """runs git pull"""
 
@@ -104,6 +108,7 @@ class Tools:
 
         print(f"git pull complete")
 
+    @run_this_step
     def run_submodule_update_recursive(self, step_number):
         """run git submodule update --init --recursive"""
 
@@ -121,6 +126,7 @@ class Tools:
 
         print(f"git submodule update --init --recursive complete")
 
+    @run_this_step
     def run_make_pull(self, step_number):
         """run make pull"""
 
@@ -137,6 +143,7 @@ class Tools:
 
         print(f"make pull complete")
 
+    @run_this_step
     def run_make_clean_install(self, step_number):
         """run make clean install"""
 
@@ -154,6 +161,7 @@ class Tools:
 
         print(f"make clean install complete")
 
+    @run_this_step
     def run_make_test(self, step_number):
         """run make test"""
 
