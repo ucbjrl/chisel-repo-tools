@@ -10,16 +10,17 @@ from release_scripts.git_utils.tools import Tools
 def usage():
     print(f"Usage: {sys.argv[0]} -repo <repo-dir> [options]")
     print(f"options are:")
-    print(f"     --start-step <start_step>")
-    print(f"     --stop-step <stop_step>")
+    print(f"     --start-step <start_step>    (or -s)")
+    print(f"     --stop-step <stop_step>      (or -e")
+    print(f"     --list-only                  (or -l)")
 
 
 def main():
     try:
         opts, args = getopt.getopt(
             sys.argv[1:],
-            "chr:s:e:",
-            ["help", "repo=", "start-step=", "stop-step=", "clear-logs"]
+            "lhr:s:e:",
+            ["help", "repo=", "start-step=", "stop-step=", "list-only"]
         )
     except getopt.GetoptError as err:
         print(err)
@@ -29,6 +30,7 @@ def main():
     current_dir = ""
     start_step = -1
     stop_step = 1000
+    list_only = False
 
     for option, value in opts:
         if option in ("--repo", "-r"):
@@ -37,6 +39,8 @@ def main():
             start_step = int(value)
         elif option in ("--stop-step", "-e"):
             stop_step = int(value)
+        elif option in ("--list-only", "-l"):
+            list_only = True
         else:
             print(f"Unhandled command line option: {option}")
             usage()
@@ -53,6 +57,7 @@ def main():
     tools = Tools("build_masters")
     tools.set_start_step(start_step)
     tools.set_stop_step(stop_step)
+    tools.set_list_only(list_only)
 
     tools.checkout_branch(1, "master")
 

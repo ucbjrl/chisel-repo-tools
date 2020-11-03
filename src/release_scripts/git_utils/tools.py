@@ -13,13 +13,19 @@ def run_this_step(step_function):
     def wrapper(*args, **kwargs):
         tool_object = args[0]
         step_number = args[1]
-        start_step = getattr(tool_object, 'get_start_step')(tool_object)
-        stop_step = getattr(tool_object, 'get_stop_step')(tool_object)
+
+        start_step = getattr(tool_object, 'get_start_step')()
+        stop_step = getattr(tool_object, 'get_stop_step')()
+
         function_name = str(step_function).split(" ")[1].split('.')[1]
         getattr(tool_object, 'set_current_function_name')(function_name)
+
+        list_only = getattr(tool_object, 'get_list_only')()
         # print(f"function name {function_name}")
 
-        if start_step <= step_number <= stop_step:
+        if list_only:
+            print(f"step {step_number:3d} {function_name}")
+        elif start_step <= step_number <= stop_step:
             print(f"running step {step_number}")
             step_function(*args, **kwargs)
         else:
@@ -51,6 +57,7 @@ class Tools:
         self.start_step, self.stop_step = -1, 1000
         self.current_function = ""
         self.current_log_file = ""
+        self.list_only = False
 
     def set_start_step(self, start_step):
         self.start_step = start_step
@@ -58,10 +65,10 @@ class Tools:
     def set_stop_step(self, stop_step):
         self.stop_step = stop_step
 
-    def get_start_step(self, start_step):
+    def get_start_step(self):
         return self.start_step
 
-    def get_stop_step(self, stop_step):
+    def get_stop_step(self):
         return self.stop_step
 
     def get_current_function_name(self):
@@ -69,6 +76,12 @@ class Tools:
 
     def set_current_function_name(self, function_name):
         self.current_function_name = function_name
+
+    def get_list_only(self) -> bool:
+        return self.list_only
+
+    def set_list_only(self, value: bool):
+        self.list_only = value
 
     def check_step(self, step_number: int) -> bool:
         step_number >= self.start_step and step_number <= self.stop_step
@@ -93,7 +106,7 @@ class Tools:
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
-            print(f"git checkout {branch_name} failed, see {log_name} for details")
+            print(f"git checkout {branch_name} failed, see {self.log_name} for details")
             exit(1)
 
         print(f"Now on branch {branch_name}")
@@ -106,11 +119,11 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"git pull &> {log_name}",
+            f"git pull &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
-            print(f"git pull failed, see {log_name} for details")
+            print(f"git pull failed, see {self.log_name} for details")
             exit(1)
 
         print(f"git pull complete")
@@ -123,11 +136,11 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"git commit -m '{commit_message}' &> {log_name}",
+            f"git commit -m '{commit_message}' &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
-            print(f"git commit failed, see {log_name} for details")
+            print(f"git commit failed, see {self.log_name} for details")
             exit(1)
 
         print(f"git commit complete")
@@ -140,11 +153,11 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"git add &> {log_name}",
+            f"git add &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
-            print(f"git add failed, see {log_name} for details")
+            print(f"git add failed, see {self.log_name} for details")
             exit(1)
 
         print(f"git add complete")
@@ -157,12 +170,12 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"git submodule update --init --recursive &> {log_name}",
+            f"git submodule update --init --recursive &> {self.log_name}",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"git submodule update recursive failed, see {log_name} for details")
+            print(f"git submodule update recursive failed, see {self.log_name} for details")
             exit(1)
 
         print(f"git submodule update --init --recursive complete")
@@ -175,11 +188,11 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"make pull &> {log_name}",
+            f"make pull &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
-            print(f"make pull failed, see {log_name} for details")
+            print(f"make pull failed, see {self.log_name} for details")
             exit(1)
 
         print(f"make pull complete")
@@ -192,13 +205,13 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"make -j8 -f Makefile clean pull &> {log_name}",
+            f"make -j8 -f Makefile clean pull &> {self.log_name}",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {log_name} for details")
+                f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
         print(f"make clean install complete")
@@ -211,12 +224,12 @@ class Tools:
         log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
-            f"make -j8 -f Makefile test &> {log_name}",
+            f"make -j8 -f Makefile test &> {self.log_name}",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j8 -f Makefile clean install failed, see {log_name} for details")
+            print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
             exit(1)
 
         print(f"make test complete")
