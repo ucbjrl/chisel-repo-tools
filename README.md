@@ -1,4 +1,4 @@
-repo-tools is a Python Module providing various git/sbt support methods.
+# repo-tools is a Python Module providing various git/sbt support methods.
 
 - addlabels (WIP) - analyze/add labels to GitHub repo
 - citSupport is a Python Module providing support for managing continuous integration builds. It contains two main sub-modules:

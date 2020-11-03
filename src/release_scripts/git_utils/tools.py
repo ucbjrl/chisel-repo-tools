@@ -5,7 +5,7 @@ import subprocess
 import re
 
 
-def run_this_step(step_function):
+def command_step(step_function):
     """
     This is a decorator function that performs several functions
     - checks that the command associated with the step_number should be run
@@ -16,7 +16,9 @@ def run_this_step(step_function):
 
     def wrapper(*args, **kwargs):
         tool_object = args[0]
+
         step_number = args[1]
+        getattr(tool_object, 'set_current_step')(step_number)
 
         start_step = getattr(tool_object, 'get_start_step')()
         stop_step = getattr(tool_object, 'get_stop_step')()
@@ -61,10 +63,14 @@ class Tools:
             print(f"Error: {self.log_dir} exists but is not a directory")
             exit(1)
 
+        self.current_step = -1
         self.start_step, self.stop_step = -1, 1000
         self.current_function = ""
         self.current_log_file = ""
         self.list_only = False
+
+    def set_current_step(self, current_step: int):
+        self.current_step = current_step
 
     def set_start_step(self, start_step):
         self.start_step = start_step
@@ -96,6 +102,9 @@ class Tools:
     def set_list_only(self, value: bool):
         self.list_only = value
 
+    def step_complete(self, msg: str = ""):
+        print(f"step {self.current_step} - {self.current_function_name} is complete. {msg}")
+
     def check_step(self, step_number: int) -> bool:
         step_number >= self.start_step and step_number <= self.stop_step
 
@@ -107,29 +116,23 @@ class Tools:
             print(f"{os.getcwd()} does not appear to be a git repo")
             exit(1)
 
-    @run_this_step
+    @command_step
     def checkout_branch(self, step_number, branch_name: str) -> None:
         """checkout specified branch"""
 
-        function_name = "checkout_branch"
-        log_name = self.step_log_name(step_number, function_name)
-
         command_result = subprocess.run(
-            f"git checkout {branch_name} &> {log_name}",
+            f"git checkout {branch_name} &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"git checkout {branch_name} failed, see {self.log_name} for details")
             exit(1)
 
-        print(f"Now on branch {branch_name}")
+        self.step_complete(f"Now on branch {branch_name}")
 
-    @run_this_step
+    @command_step
     def git_pull(self, step_number: int) -> None:
         """runs git pull"""
-
-        function_name = "git_pull"
-        log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
             f"git pull &> {self.log_name}",
@@ -139,14 +142,25 @@ class Tools:
             print(f"git pull failed, see {self.log_name} for details")
             exit(1)
 
-        print(f"git pull complete")
+        self.step_complete()
 
-    @run_this_step
+    @command_step
+    def git_push(self, step_number: int) -> None:
+        """runs git push"""
+
+        command_result = subprocess.run(
+            f"git push &> {self.log_name}",
+            shell=True,
+            capture_output=False)
+        if command_result.returncode != 0:
+            print(f"git push failed, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
     def git_commit(self, step_number: int, commit_message: str) -> None:
         """runs git commit"""
-
-        function_name = "git_commit"
-        log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
             f"git commit -m '{commit_message}' &> {self.log_name}",
@@ -156,14 +170,11 @@ class Tools:
             print(f"git commit failed, see {self.log_name} for details")
             exit(1)
 
-        print(f"git commit complete")
+        self.step_complete()
 
-    @run_this_step
+    @command_step
     def git_add(self, step_number: int) -> None:
         """runs git pull"""
-
-        function_name = "git_add"
-        log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
             f"git add &> {self.log_name}",
@@ -173,14 +184,11 @@ class Tools:
             print(f"git add failed, see {self.log_name} for details")
             exit(1)
 
-        print(f"git add complete")
+        self.step_complete()
 
-    @run_this_step
+    @command_step
     def run_submodule_update_recursive(self, step_number):
         """run git submodule update --init --recursive"""
-
-        function_name = "run_submodule_update_recursive"
-        log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
             f"git submodule update --init --recursive &> {self.log_name}",
@@ -191,14 +199,11 @@ class Tools:
             print(f"git submodule update recursive failed, see {self.log_name} for details")
             exit(1)
 
-        print(f"git submodule update --init --recursive complete")
+        self.step_complete()
 
-    @run_this_step
+    @command_step
     def run_make_pull(self, step_number):
         """run make pull"""
-
-        function_name = "make_pull"
-        log_name = self.step_log_name(step_number, function_name)
 
         command_result = subprocess.run(
             f"make pull &> {self.log_name}",
@@ -208,17 +213,14 @@ class Tools:
             print(f"make pull failed, see {self.log_name} for details")
             exit(1)
 
-        print(f"make pull complete")
+        self.step_complete()
 
-    @run_this_step
+    @command_step
     def run_make_clean_install(self, step_number):
         """run make clean install"""
 
-        function_name = "run_make_clean_install"
-        log_name = self.step_log_name(step_number, function_name)
-
         command_result = subprocess.run(
-            f"make -j8 -f Makefile clean pull &> {self.log_name}",
+            f"make -j8 -f Makefile clean install &> {self.log_name}",
             shell=True,
             capture_output=False)
 
@@ -227,32 +229,41 @@ class Tools:
                 f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
-        print(f"make clean install complete")
+        self.step_complete()
 
-    @run_this_step
+    @command_step
     def run_make_test(self, step_number):
         """run make test"""
 
-        function_name = "run_make_test"
-        log_name = self.step_log_name(step_number, function_name)
+        def show_errors() -> bool:
+            check_result = subprocess.run(
+                f"""grep '\\[error\\]' {self.log_name}""",
+                shell=True,
+                text=True,
+                capture_output=True,
+            )
 
-        command_result = subprocess.run(
-            f"make -j8 -f Makefile test &> {self.log_name}",
-            shell=True,
-            capture_output=False)
+            error_lines = check_result.stdout.splitlines()
+            has_errors = len(error_lines) > 0
+            if has_errors:
+                print(f"Errors ({len(error_lines)} found during {self.current_function_name}")
+                for line in error_lines:
+                    print(line)
+                print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
 
-        if command_result.returncode != 0:
-            print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
+            return has_errors
+
+        # command_result = subprocess.run(
+        #     f"make -j8 -f Makefile test &> {self.log_name}",
+        #     shell=True,
+        #     capture_output=False)
+        #
+        # if command_result.returncode != 0:
+        #     print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
+        #     show_errors()
+        #     exit(1)
+
+        if show_errors():
             exit(1)
 
-        print(f"make test complete")
-
-    def step_log_name(self, step_number: int, step_name) -> str:
-        """create the correct name for a log file"""
-
-        log_file_name = f"{self.log_name}/step_{step_number:03d}_{step_name}"
-        if self.white_space.search(log_file_name):
-            print(f"Error: {step_number} {step_name} generated log name '{log_file_name} contains white space")
-            exit(1)
-
-        return log_file_name
+        self.step_complete()

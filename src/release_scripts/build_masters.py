@@ -75,6 +75,8 @@ def main():
 
     tools.git_commit(8, "Bump master branches")
 
+    tools.git_push(9)
+
 
 if __name__ == "__main__":
     main()
