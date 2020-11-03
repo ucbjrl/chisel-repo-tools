@@ -7,7 +7,11 @@ import re
 
 def run_this_step(step_function):
     """
-    Conditionally runs a step
+    This is a decorator function that performs several functions
+    - checks that the command associated with the step_number should be run
+    - get the name of the function being run and use is as the step name
+    - generator a log file name for this command based on the function name
+    - if in list mode just show the step number and name and do not run the command
     """
 
     def wrapper(*args, **kwargs):
@@ -20,6 +24,9 @@ def run_this_step(step_function):
         function_name = str(step_function).split(" ")[1].split('.')[1]
         getattr(tool_object, 'set_current_function_name')(function_name)
 
+        log_dir = getattr(tool_object, 'get_log_dir')()
+        log_name = f"{log_dir}/step_{step_number:03d}_{function_name}"
+        getattr(tool_object, 'set_current_log_name')(log_name)
         list_only = getattr(tool_object, 'get_list_only')()
         # print(f"function name {function_name}")
 
@@ -43,15 +50,15 @@ def run_this_step(step_function):
 class Tools:
     def __init__(self, task_name):
         self.task_name = task_name
-        self.log_name = f"log_{task_name}"
+        self.log_dir = f"log_{task_name}"
         self.check_release_dir()
 
         self.white_space = re.compile('\s')
 
-        if not os.path.exists(self.log_name):
-            os.mkdir(self.log_name)
-        elif not os.path.isdir(self.log_name):
-            print(f"Error: {self.log_name} exists but is not a directory")
+        if not os.path.exists(self.log_dir):
+            os.mkdir(self.log_dir)
+        elif not os.path.isdir(self.log_dir):
+            print(f"Error: {self.log_dir} exists but is not a directory")
             exit(1)
 
         self.start_step, self.stop_step = -1, 1000
@@ -76,6 +83,12 @@ class Tools:
 
     def set_current_function_name(self, function_name):
         self.current_function_name = function_name
+
+    def get_log_dir(self):
+        return self.log_dir
+
+    def set_current_log_name(self, new_log_name):
+        self.log_name = new_log_name
 
     def get_list_only(self) -> bool:
         return self.list_only
