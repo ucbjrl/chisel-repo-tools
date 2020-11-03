@@ -1,6 +1,6 @@
 #
 
-import os
+import os, sys
 import subprocess
 import re
 
@@ -50,9 +50,13 @@ def command_step(step_function):
 
 
 class Tools:
-    def __init__(self, task_name):
+    def __init__(self, task_name, release_dir):
         self.task_name = task_name
         self.log_dir = f"log_{task_name}"
+
+        self.release_dir = release_dir
+        self.execution_dir = os.getcwd()
+        os.chdir(release_dir)
         self.check_release_dir()
 
         self.white_space = re.compile('\s')
@@ -216,7 +220,7 @@ class Tools:
         """run make pull"""
 
         command_result = subprocess.run(
-            f"make pull &> {self.log_name}",
+            f"make -f Makefile pull &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:

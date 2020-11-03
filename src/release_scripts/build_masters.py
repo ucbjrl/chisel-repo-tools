@@ -8,7 +8,7 @@ from release_scripts.git_utils.tools import Tools
 
 
 def usage():
-    print(f"Usage: {sys.argv[0]} -repo <repo-dir> [options]")
+    print(f"Usage: {sys.argv[0]} --repo <repo-dir> [options]")
     print(f"options are:")
     print(f"     --start-step <start_step>    (or -s)")
     print(f"     --stop-step <stop_step>      (or -e")
@@ -27,14 +27,14 @@ def main():
         usage()
         sys.exit(2)
 
-    current_dir = ""
+    release_dir = ""
     start_step = -1
     stop_step = 1000
     list_only = False
 
     for option, value in opts:
         if option in ("--repo", "-r"):
-            current_dir = value
+            release_dir = value
         elif option in ("--start-step", "-s"):
             start_step = int(value)
         elif option in ("--stop-step", "-e"):
@@ -48,13 +48,11 @@ def main():
 
     print(f"chisel-release directory is {os.getcwd()}")
 
-    if current_dir == "":
+    if release_dir == "":
         usage()
         exit(1)
 
-    os.chdir(current_dir)
-
-    tools = Tools("build_masters")
+    tools = Tools("build_masters", release_dir)
     tools.set_start_step(start_step)
     tools.set_stop_step(stop_step)
     tools.set_list_only(list_only)
