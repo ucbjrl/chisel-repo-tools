@@ -63,11 +63,21 @@ class Tools:
             print(f"Error: {self.log_dir} exists but is not a directory")
             exit(1)
 
+        # currently executing step
         self.current_step = -1
+        # externally set start and stop step, default is do all steps
         self.start_step, self.stop_step = -1, 1000
+        # current function name
         self.current_function = ""
+        # log file of current_command
         self.current_log_file = ""
+        # set this to True to only list the commands in the script
         self.list_only = False
+        # used to find things like Makefiles
+        self.execution_dir = ""
+
+    def set_execution_dir(self, execution_dir: str):
+        self.execution_dir = execution_dir
 
     def set_current_step(self, current_step: int):
         self.current_step = current_step
@@ -253,15 +263,15 @@ class Tools:
 
             return has_errors
 
-        # command_result = subprocess.run(
-        #     f"make -j8 -f Makefile test &> {self.log_name}",
-        #     shell=True,
-        #     capture_output=False)
-        #
-        # if command_result.returncode != 0:
-        #     print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
-        #     show_errors()
-        #     exit(1)
+        command_result = subprocess.run(
+            f"make -j8 -f Makefile test &> {self.log_name}",
+            shell=True,
+            capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
+            show_errors()
+            exit(1)
 
         if show_errors():
             exit(1)
