@@ -44,6 +44,14 @@ def command_step(step_function):
 
 
 class Tools:
+    """
+    This is the toolbox for the tools necessary to run release scripts
+    A release script is basically a list of the tasks that need to be done in
+    a specific order. Each step (command) must specify a step number, that can
+    be used to re-run script starting at a particular number and/or ending at one.
+    The command_step decorator handles this and a number of additional common
+    operations such as extracting the commands string name from the method name.
+    """
     def __init__(self, task_name, release_dir):
         self.task_name = task_name
         self.log_dir = f"log_{task_name}"
@@ -71,8 +79,8 @@ class Tools:
         self.current_log_file = ""
         # set this to True to only list the commands in the script
         self.list_only = False
-        # used to find things like Makefiles
-        self.execution_dir = ""
+        # default Makefile name, used for clean, pull, install, test
+        self.default_makefile = f"{self.execution_dir}/resources/Makefile"
 
     def set_execution_dir(self, execution_dir: str):
         self.execution_dir = execution_dir
@@ -181,15 +189,15 @@ class Tools:
         self.step_complete()
 
     @command_step
-    def git_add(self, step_number: int) -> None:
+    def git_add_dash_u(self, step_number: int) -> None:
         """runs git pull"""
 
         command_result = subprocess.run(
-            f"git add &> {self.log_name}",
+            f"git add -u &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
-            print(f"git add failed, see {self.log_name} for details")
+            print(f"git add -u failed, see {self.log_name} for details")
             exit(1)
 
         self.step_complete()
@@ -214,7 +222,7 @@ class Tools:
         """run make pull"""
 
         command_result = subprocess.run(
-            f"make -f Makefile pull &> {self.log_name}",
+            f"make -f {self.default_makefile} pull &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
@@ -228,13 +236,13 @@ class Tools:
         """run make clean install"""
 
         command_result = subprocess.run(
-            f"make -j8 -f Makefile clean install &> {self.log_name}",
+            f"make -j8 -f {self.default_makefile} clean install &> {self.log_name}",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j8 -f Makefile clean install failed ({command_result.returncode}), see {self.log_name} for details")
+                f"make -j8 -f {self.default_makefile} clean install failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
         self.step_complete()
@@ -257,17 +265,17 @@ class Tools:
                 print(f"Errors ({len(error_lines)} found during {self.current_function_name}")
                 for line in error_lines:
                     print(line)
-                print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
+                print(f"make -j8 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
 
             return has_errors
 
         command_result = subprocess.run(
-            f"make -j8 -f Makefile test &> {self.log_name}",
+            f"make -j8 -f {self.default_makefile} test &> {self.log_name}",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j8 -f Makefile clean install failed, see {self.log_name} for details")
+            print(f"make -j8 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
             show_errors()
             exit(1)
 

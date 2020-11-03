@@ -1,4 +1,11 @@
-# repo-tools is a Python Module providing various git/sbt support methods.
+# Chisel Repo Tools
+**chisel-repo-tools** is a set of tools used for creating and updating chisel releases.
+It is designed to be used in conjuction with the [chisel-release](https://github.com/ucb-bar/chisel-release) repository.
+
+
+
+## Python Modules
+is a Python Module providing various git/sbt support methods.
 
 - addlabels (WIP) - analyze/add labels to GitHub repo
 - citSupport is a Python Module providing support for managing continuous integration builds. It contains two main sub-modules:

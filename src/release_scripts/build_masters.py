@@ -69,7 +69,7 @@ def main():
 
     tools.run_make_test(6)
 
-    tools.git_add(7)
+    tools.git_add_dash_u(7)
 
     tools.git_commit(8, "Bump master branches")
 
