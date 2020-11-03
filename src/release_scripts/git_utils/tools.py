@@ -40,12 +40,6 @@ def command_step(step_function):
         else:
             print(f"skipping step {step_number}")
 
-        # print(f"step, start, stop {step_number} {start_step} { stop_step}")
-        # print(f"object {dir(tool_object)}")
-        # print(f"object {getattr(tool_object, 'get_start_step')(tool_object)}")
-        # print(f"step {step_function(*args, **kwargs)}")
-        # print(step_function)
-
     return wrapper
 
 
