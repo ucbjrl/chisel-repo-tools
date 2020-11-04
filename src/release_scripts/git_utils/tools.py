@@ -251,6 +251,14 @@ class Tools:
     def run_make_test(self, step_number):
         """run make test"""
 
+        def is_external_program_present(command: str):
+            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, capture_output=False)
+            if command_result.returncode != 0:
+                just_command = command.split(' ')[0]
+                print(f"Required: {just_command} failed, is it installed?, see {self.log_name} for details")
+                exit(1)
+
+
         def show_errors() -> bool:
             check_result = subprocess.run(
                 f"""grep '\\[error\\]' {self.log_name}""",
@@ -269,8 +277,12 @@ class Tools:
 
             return has_errors
 
+        is_external_program_present(f"verilator -version")
+        is_external_program_present(f"yosys -V")
+        is_external_program_present(f"z3 --version")
+
         command_result = subprocess.run(
-            f"make -j8 -f {self.default_makefile} test &> {self.log_name}",
+            f"make -j8 -f {self.default_makefile} test >> {self.log_name} 2>&1",
             shell=True,
             capture_output=False)
 

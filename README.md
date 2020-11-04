@@ -18,6 +18,15 @@ Currently there the following scripts
 
 ### How to use
 
+#### Other requirements
+Scripts that run tests on the BigN repos require a few external programs to be in the executable path.
+
+| program | version |  what it does |
+| --- | --- | --- |
+| verilator | \>= 4.016 | builds c++ circuit simulators |
+| yosys | \>= 0.9 | used for in firrtl equivalence tests |
+| z3 | \>= 4.8.9 | used to test SMT backend |
+ 
 #### Create a directory for your work
 #### Setup python
 We recommend using a python3 virtual enviroment.
