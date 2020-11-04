@@ -52,6 +52,7 @@ class Tools:
     The command_step decorator handles this and a number of additional common
     operations such as extracting the commands string name from the method name.
     """
+
     def __init__(self, task_name, release_dir):
         self.task_name = task_name
         self.log_dir = f"log_{task_name}"
@@ -257,7 +258,6 @@ class Tools:
                 just_command = command.split(' ')[0]
                 print(f"Required: {just_command} failed, is it installed?, see {self.log_name} for details")
                 exit(1)
-
 
         def show_errors() -> bool:
             check_result = subprocess.run(
