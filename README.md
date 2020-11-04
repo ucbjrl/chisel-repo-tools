@@ -2,7 +2,43 @@
 **chisel-repo-tools** is a set of tools used for creating and updating chisel releases.
 It is designed to be used in conjuction with the [chisel-release](https://github.com/ucb-bar/chisel-release) repository.
 
+## Release processes
+There are several parts here
+### Release python scripts
+The python scripts the various release processes are in the src/release_scripts directory
+Currently there the following scripts
 
+| script | what it does |
+| --- | --- |
+| build_masters | updates the chisel-release master with master versions of all BigN chisel repos and runs tests.|
+
+- scripts should respond to `--help` with mor information
+- scripts should have `--start-step <n>` to skip over tests while starting
+- scripts should have `--stop-step <n>` to stop after a particular step
+
+### How to use
+
+#### Create a directory for your work
+#### Setup python
+We recommend using a python3 virtual enviroment.
+```
+source ~/.venvs/chisel-release-python/bin/activate
+```
+See: [Appendix Setting up python virtual environment]
+#### get tools
+```
+git clone https://github.com/ucb-bar/chisel-repo-tools
+```
+#### Get a release copy
+```
+git clone https://github.com/ucb-bar/chisel-release my-release-dir
+```
+#### Run your script
+```
+cd chisel-repo-tools
+export PYTHONPATH=`pwd`/src
+python src/release_scripts/<desired-script> --repo ../chisel-release 
+```
 
 ## Python Modules
 is a Python Module providing various git/sbt support methods.
@@ -46,3 +82,7 @@ see:
 - https://developer.github.com/v3/oauth_authorizations/
 - https://developer.github.com/v3/oauth/
 - https://github.com/blog/1509-personal-api-tokens
+
+## Appendix Setting up python virtual environment
+python -m ~/.venv chisel-release-python
+
