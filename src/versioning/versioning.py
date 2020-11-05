@@ -691,7 +691,9 @@ def main(argv=None) -> int: # IGNORE:C0111
     program_version = "v%s" % __version__
     program_build_date = str(__updated__)
     program_version_message = '%%(prog)s %s (%s)' % (program_version, program_build_date)
-    program_shortdesc = __import__('__main__').__doc__.split("\n")[1]
+    #program_shortdesc = __import__('__main__').__doc__.split("\n")[1]
+    program_shortdesc = sys.argv[0]
+    #program_shortdesc = 'short-desc'
     program_license = '''%s
 
   Created by Jim Lawson on %s.

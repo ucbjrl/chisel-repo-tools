@@ -46,13 +46,22 @@ def main():
             usage()
             assert False
 
-    print(f"chisel-release directory is {os.getcwd()}")
-
     if release_dir == "":
         usage()
         exit(1)
 
     tools = Tools("build_masters", release_dir)
+
+    if not list_only:
+        if release_dir == "":
+            print(f"Error: --repo must be specified to run this script")
+            usage()
+            exit(1)
+        else:
+            print(f"chisel-release directory is {os.getcwd()}")
+    else:
+        print(f"These are the steps to be executed for the {tools.task_name} script")
+
     tools.set_start_step(start_step)
     tools.set_stop_step(stop_step)
     tools.set_list_only(list_only)

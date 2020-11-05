@@ -4,6 +4,8 @@ import os, sys
 import subprocess
 import re
 
+from versioning import versioning
+
 
 def command_step(step_function):
     """
@@ -233,6 +235,25 @@ class Tools:
         self.step_complete()
 
     @command_step
+    def git_merge_masters_into_dot_x(self, step_number):
+        """git merge masters into dot x"""
+        command = """
+            git submodule foreach '
+                if git diff --cached --quiet; then git merge --no-ff --no-commit master;
+                fi
+            '  &> {self.log_name}
+        """
+        command_result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=False)
+        if command_result.returncode != 0:
+            print(f"make pull failed, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
     def run_make_clean_install(self, step_number):
         """run make clean install"""
 
@@ -292,6 +313,25 @@ class Tools:
             exit(1)
 
         if show_errors():
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def verify_merge(self, step_number):
+        """verify merge"""
+        command = """
+            git submodule foreach '
+                if git diff --cached --quiet; then git merge --no-ff --no-commit master;
+                fi
+            '  &> {self.log_name}
+        """
+        command_result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=False)
+        if command_result.returncode != 0:
+            print(f"make pull failed, see {self.log_name} for details")
             exit(1)
 
         self.step_complete()
