@@ -62,7 +62,7 @@ class areaRE:
         self.re = re.compile(self.reString)
 
 areaREs = [
-        areaRE('documentation', r'docs/'),
+        areaRE('documentation', r'doc/'),
         areaRE('testing', r'(src/test/)|/(((AdvTester)|(Tester)|(Assert))\.scala)'),
         areaRE('fixpt', r'/((Fixed)|(fixpt))\.scala'),
         areaRE('cpp backend', r'/Cpp\.scala'),
