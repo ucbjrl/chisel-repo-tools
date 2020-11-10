@@ -4,7 +4,7 @@ master - main development branch - should always be buildable, may not be compat
 - Z.Y.x branch - binary compatible with Z.Y-release branch, may be momentarily incompatible with related .x branches
 - Z.Y-release - under complete control of the release process. Always compatible with release-related branches of other repositories.
 
-![](images/image1.png)
+![](images/git-snapshots.svg)
 
 We make use of the fact that Git submodule support allows one to specify the branch to be used for each submodule. This allows us to deal with different branches for each submodule in each branch of the top level chisel-release repository.
 The simplest case is the master branch of chisel-release.

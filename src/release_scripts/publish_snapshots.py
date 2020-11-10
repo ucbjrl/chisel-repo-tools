@@ -69,35 +69,24 @@ def main():
     tools.set_stop_step(stop_step)
     tools.set_list_only(list_only)
 
-    tools.checkout_branch(counter.next_step(), "master")
-
-    tools.git_pull(counter.next_step())
-
-    tools.run_submodule_update_recursive(counter.next_step())
-
-    tools.run_make_pull(counter.next_step())
-
-    tools.git_add_dash_u(counter.next_step())
-
-    tools.git_commit(counter.next_step(), f"Bump master versions")
-
-    tools.git_push(counter.next_step())
-
     tools.checkout_branch(counter.next_step(), release_version)
 
     tools.run_submodule_update_recursive(counter.next_step())
 
     tools.run_make_pull(counter.next_step())
 
-    tools.git_add_dash_u(counter.next_step())
+    tools.verify_merge(counter.next_step())
+
+    tools.run_make_clean_install(counter.next_step())
 
     tools.run_make_test(counter.next_step())
 
-    tools.git_commit(counter.next_step(), f"Bump {release_version} versions")
+    tools.git_add_dash_u(counter.next_step())
 
-    tools.git_merge_masters_into_dot_x(counter.next_step())
+    tools.git_commit(counter.next_step(), f"Release {release_version} top level updated")
 
-    tools.verify_merge(counter.next_step())
+    tools.git_push(counter.next_step())
+
 
 if __name__ == "__main__":
     main()

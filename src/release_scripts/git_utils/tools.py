@@ -182,7 +182,7 @@ class Tools:
         """runs git commit"""
 
         command_result = subprocess.run(
-            f"git commit -m '{commit_message}' &> {self.log_name}",
+            f"git diff-index --quiet HEAD || git commit -m '{commit_message}' &> {self.log_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
@@ -237,7 +237,7 @@ class Tools:
     @command_step
     def git_merge_masters_into_dot_x(self, step_number):
         """git merge masters into dot x"""
-        command = """
+        command = f"""
             git submodule foreach '
                 if git diff --cached --quiet; then git merge --no-ff --no-commit master;
                 fi
@@ -320,18 +320,18 @@ class Tools:
     @command_step
     def verify_merge(self, step_number):
         """verify merge"""
-        command = """
-            git submodule foreach '
-                if git diff --cached --quiet; then git merge --no-ff --no-commit master;
-                fi
-            '  &> {self.log_name}
-        """
-        command_result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=False)
+
+        versioning_script = 'versioning/versioning.py'
+
+        right_python_path = next(path for path in os.getenv("PYTHONPATH").split(':') if os.path.exists(f"{path}/{versioning_script}"))
+
+        command = f"python {right_python_path}/{versioning_script} verify"
+        command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, capture_output=False)
+
         if command_result.returncode != 0:
-            print(f"make pull failed, see {self.log_name} for details")
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
+
+        # versioning.main(["verify"])
 
         self.step_complete()
