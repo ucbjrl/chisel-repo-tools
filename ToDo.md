@@ -1,4 +1,5 @@
 # TODO
 
-- Move Makefile from chisel-release to chisel-repo-tools
-- Get minimal clean python virtual environment
+- Working on doing release options
+  - Script is publish_new_release
+  - working on calling versioning with proper args

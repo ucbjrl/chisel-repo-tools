@@ -5,6 +5,7 @@ import sys
 import getopt
 
 from release_scripts.git_utils.tools import Tools
+from release_scripts.git_utils.step_counter import StepCounter
 
 
 def usage():
@@ -31,6 +32,7 @@ def main():
     start_step = -1
     stop_step = 1000
     list_only = False
+    counter = StepCounter()
 
     for option, value in opts:
         if option in ("--repo", "-r"):
@@ -69,23 +71,23 @@ def main():
     tools.set_stop_step(stop_step)
     tools.set_list_only(list_only)
 
-    tools.checkout_branch(1, "master")
+    tools.checkout_branch(counter.next_step(), "master")
 
-    tools.git_pull(2)
+    tools.git_pull(counter.next_step())
 
-    tools.run_submodule_update_recursive(3)
+    tools.run_submodule_update_recursive(counter.next_step())
 
-    tools.run_make_pull(4)
+    tools.run_make_pull(counter.next_step())
 
-    tools.run_make_clean_install(5)
+    tools.run_make_clean_install(counter.next_step())
 
-    tools.run_make_test(6)
+    tools.run_make_test(counter.next_step())
 
-    tools.git_add_dash_u(7)
+    tools.git_add_dash_u(counter.next_step())
 
-    tools.git_commit(8, "Bump master branches")
+    tools.git_commit(counter.next_step(), "Bump master branches")
 
-    tools.git_push(9)
+    tools.git_push(counter.next_step())
 
 
 if __name__ == "__main__":
