@@ -1,8 +1,17 @@
-# Branch Management
-We assume that each submodule supports the following branch naming scheme:
-master - main development branch - should always be buildable, may not be compatible with other master branches for several days
-- Z.Y.x branch - binary compatible with Z.Y-release branch, may be momentarily incompatible with related .x branches
-- Z.Y-release - under complete control of the release process. Always compatible with release-related branches of other repositories.
+# Branches and Release Management
+### We assume that each submodule supports the following branch naming scheme:
+
+- **master** - main development branch
+  - Should always be buildable
+  - May not be compatible with other master branches for several days
+- **Z.Y.x** branch - binary compatible with Z.Y-release branch
+  - May be momentarily incompatible with related .x branches
+- **Z.Y-release** - under complete control of the release process.
+  - Always compatible with release-related branches of other repositories.
+
+Changes are made on development branches which are merged via **PR** to master. PRs marked with a release milestone
+will be backported to the `.x` branch associated with that milestone. This should be the only way that `.x` branches
+are ever updated. This process of backporting is automated via [Mergify](https://mergify.io/).
 
 ![](images/git-snapshots.svg)
 

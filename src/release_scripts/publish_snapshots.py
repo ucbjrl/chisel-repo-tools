@@ -47,6 +47,9 @@ def main():
             stop_step = int(value)
         elif option in ("--list-only", "-l"):
             list_only = True
+        elif option in ("--help", "-h"):
+            usage()
+            exit(1)
         else:
             print(f"Unhandled command line option: {option}")
             usage()
