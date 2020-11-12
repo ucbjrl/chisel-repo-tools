@@ -9,11 +9,22 @@
 - **Z.Y-release** - under complete control of the release process.
   - Always compatible with release-related branches of other repositories.
 
-Changes are made on development branches which are merged via **PR** to master. PRs marked with a release milestone
-will be backported to the `.x` branch associated with that milestone. This should be the only way that `.x` branches
-are ever updated. This process of backporting is automated via [Mergify](https://mergify.io/).
+Changes are made on development branches which are merged via **PR** to master.
+PRs marked with a release milestone will be backported to the `.x` branch associated with that milestone.
+This should be the only way that `.x` branches are ever updated.
+This process of backporting is automated via [Mergify](https://mergify.io/).
 
 ![](images/git-snapshots.svg)
+
+### Publishing releases
+In the following diagram we see a new release being created and where master and everything gets published
+- New release 3.4 is created from master
+  - 3.4.x is working/snapshot branch
+  - 3.4-release is lastest release of 3.4
+- master sbt has version 3.5-SNAPSHOT
+
+![](images/release-publish-model.svg)
+
 
 We make use of the fact that Git submodule support allows one to specify the branch to be used for each submodule. This allows us to deal with different branches for each submodule in each branch of the top level chisel-release repository.
 The simplest case is the master branch of chisel-release.
