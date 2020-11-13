@@ -20,7 +20,7 @@ git clone https://github.com/ucb-bar/chisel-repo-tools.git
 See: [Python Virtual Environment Setup[docs/python_venv_setup.md]
 
 ## Update the .x branch of chisel-release
-###Checkout the .x branch
+### Checkout the .x branch
 ```
 git checkout Z.Y.x
 git pull
