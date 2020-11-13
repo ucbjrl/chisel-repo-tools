@@ -4,3 +4,5 @@
 ### [Release Basics](release_basics.md)
 
 ### [Python Virtual Enviroment Setup](python_venv_setup.md)
+
+### [Release resources](resources.md)
