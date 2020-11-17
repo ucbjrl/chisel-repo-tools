@@ -17,7 +17,7 @@ git clone https://github.com/ucb-bar/chisel-repo-tools.git
 ```
 
 ## Set up the python environment
-See: [Python Virtual Environment Setup[docs/python_venv_setup.md]
+See: [Python Virtual Environment Setup](docs/python_venv_setup.md)
 
 ## Update the .x branch of chisel-release
 ### Checkout the .x branch
