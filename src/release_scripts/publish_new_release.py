@@ -69,8 +69,6 @@ def main():
             usage()
             assert False
 
-    tools = Tools("publish_snapshots", release_dir)
-
     if not list_only:
         if release_dir == "" or release_dot_x_version == "":
             print(f"Error: both --repo and --release must be specified to run this script")
@@ -85,6 +83,8 @@ def main():
 
     else:
         print(f"These are the steps to be executed for the {tools.task_name} script")
+
+    tools = Tools("publish_snapshots", release_dir)
 
     tools.set_start_step(start_step)
     tools.set_stop_step(stop_step)
