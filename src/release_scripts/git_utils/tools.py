@@ -45,43 +45,6 @@ def command_step(step_function):
     return wrapper
 
 
-def get_versioning_command(sub_command: str) -> str:
-    python_path = os.getenv("PYTHONPATH")
-    versioning_script = 'versioning/versioning.py'
-
-    try:
-        right_python_path = next(path for path in python_path.split(':') if os.path.exists(f"{path}/{versioning_script}"))
-    except StopIteration:
-        print(f"Unable to find a path to {versioning_script} in PYTHONPATH={python_path}")
-        exit(1)
-
-    args = ""
-    if sub_command == "verify":
-        args = "verify"
-    elif sub_command == "ds":
-        now = datetime.now()
-        day_stamp = now.strftime("%Y%m%d")
-        args = f'-s {day_stamp} write'
-    elif sub_command == "date-stamped-clear":
-        args = f'-s "" write'
-    elif sub_command == "bump-max":
-        args = "bump-max"
-    elif sub_command == "bump-min":
-        args = "bump-min"
-    elif sub_command == "rc-clear":
-        args = '-r "" write'
-    elif sub_command.startswith("rc"):
-        pattern = re.compile('rc(\d+)')
-        if not pattern.match(sub_command):
-            print("Error: bad bump-type, release candidate must be of the form RC<candidate-number>")
-            exit(1)
-        args = sub_command
-
-
-
-    return f"python {right_python_path}/{versioning_script} {args}"
-
-
 class Tools:
     """
     This is the toolbox for the tools necessary to run release scripts
@@ -128,6 +91,42 @@ class Tools:
         self.list_only = False
         # default Makefile name, used for clean, pull, install, test
         self.default_makefile = f"{self.execution_dir}/resources/Makefile"
+
+    @staticmethod
+    def get_versioning_command(sub_command: str) -> str:
+        python_path = os.getenv("PYTHONPATH")
+        versioning_script = 'versioning/versioning.py'
+
+        try:
+            right_python_path = next(
+                path for path in python_path.split(':') if os.path.exists(f"{path}/{versioning_script}"))
+        except StopIteration:
+            print(f"Unable to find a path to {versioning_script} in PYTHONPATH={python_path}")
+            exit(1)
+
+        args = ""
+        if sub_command == "verify":
+            args = "verify"
+        elif sub_command == "ds":
+            now = datetime.now()
+            day_stamp = now.strftime("%Y%m%d")
+            args = f'-s {day_stamp} write'
+        elif sub_command == "date-stamped-clear":
+            args = f'-s "" write'
+        elif sub_command == "bump-max":
+            args = "bump-max"
+        elif sub_command == "bump-min":
+            args = "bump-min"
+        elif sub_command == "rc-clear":
+            args = '-r "" write'
+        elif sub_command.startswith("rc"):
+            pattern = re.compile('rc(\d+)')
+            if not pattern.match(sub_command):
+                print("Error: bad bump-type, release candidate must be of the form RC<candidate-number>")
+                exit(1)
+            args = sub_command
+
+        return f"python {right_python_path}/{versioning_script} {args}"
 
     def set_execution_dir(self, execution_dir: str):
         self.execution_dir = execution_dir
@@ -365,7 +364,7 @@ class Tools:
     def verify_merge(self, step_number):
         """verify merge"""
 
-        command = get_versioning_command("verify")
+        command = Tools.get_versioning_command("verify")
         command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
@@ -378,13 +377,125 @@ class Tools:
     def bump_release(self, step_number, bump_type: str):
         """bump release versions of submodules"""
 
-        command = get_versioning_command(bump_type)
+        command = Tools.get_versioning_command(bump_type)
         command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
 
+        self.step_complete()
 
+    @command_step
+    def check_version_updates(self, step_number):
+        """check that updating the version seems to be ok"""
+        command = f"git diff --submodule=diff"
+        command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
 
         self.step_complete()
+
+    @command_step
+    def add_and_commit_submodules(self, step_number):
+        """add and commit all submodules"""
+        command = f"""git submodule foreach 'git add -u && git commit -m "Bump version strings." '"""
+
+        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=True)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def merge_dot_x_branches_into_release_branches(self, step_number):
+        """merges commits from .x branches into -release branches"""
+        command = f"""
+        git submodule foreach
+            'if [ "$name" != "rocket-chip" ] && git diff --quiet --cached ; then
+                 rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
+                 xbranch=$(echo $rbranch | sed -e 's/-release/.x/');
+                 git merge --no-ff --no-commit $xbranch;
+            fi'
+        """
+
+        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def check_dot_x_merge_status(self, step_number):
+        """look for any obvious error from merge_dot_x_branches_into_release_branches step"""
+        command = f"git status -b uno --ignore-submodules=untracked"
+
+        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def commit_each_submodule(self, step_number):
+        """commit each submodule"""
+        command = f"""
+            git submodule foreach '
+                if git diff --cached --quiet ; then echo skipping ; else
+                    git commit --no-edit
+                fi
+            '
+        """
+
+        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def push_submodules(self, step_number):
+        """push each submodule"""
+        command = f"""git submodule foreach 'git push'"""
+
+        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def publish_signed(self, step_number):
+        """publish signed"""
+        command = f"make -f {self.default_makefile} +publishedSigned &> {self.log_name}"
+
+        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def comment(self, step_number, message: str):
+        """comment"""
+
+        print(message)
+
+        self.step_complete()
+
+
+

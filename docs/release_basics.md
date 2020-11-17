@@ -15,6 +15,7 @@ This should be the only way that `.x` branches are ever updated.
 This process of backporting is automated via [Mergify](https://mergify.io/).
 
 ![](images/git-snapshots.svg)
+>Diagrams generated with [diagrams.net](https://www.diagrams.net/)
 
 ### Publishing releases
 In the following diagram we see a new release being created and where master and everything gets published
