@@ -59,6 +59,10 @@ class Tools:
         self.task_name = task_name
         self.log_dir = f"log_{task_name}"
 
+        if release_dir is None or release_dir == "":
+            print(f"Release dir cannot be empty, try --help to see options")
+            exit(1)
+
         self.release_dir = release_dir
         self.execution_dir = os.getcwd()
         os.chdir(release_dir)
@@ -497,5 +501,71 @@ class Tools:
 
         self.step_complete()
 
+    @command_step
+    def tag_submodules(self, step_number, is_dry_run: bool):
+        """tag submodules"""
 
+        subcommand = "echo" if is_dry_run else "eval"
+        command = f"""
+             git submodule foreach '
+                 rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
+                 xbranch=$(echo $rbranch | sed -e "s/-release/.x/");
+                 {subcommand} git tag $(../genTag.sh $xbranch)
+             '
+        """
 
+        command_result = subprocess.run(f"{command} &> {self.log_name}", shell=True, text=True, capture_output=False)
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        command = f"""git submodule foreach 'git describe'"""
+        command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        command = f"""git submodule foreach 'git push origin $(git describe)'"""
+        command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def tag_top_level(self, step_number, is_dry_run: bool):
+        """tag top level"""
+
+        subcommand = "echo" if is_dry_run else "eval"
+        command = f"""
+             git submodule foreach '
+                 rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
+                 xbranch=$(echo $rbranch | sed -e "s/-release/.x/");
+                 {subcommand} git tag $(../genTag.sh $xbranch)
+             '
+        """
+
+        command_result = subprocess.run(f"{command} &> {self.log_name}", shell=True, text=True, capture_output=False)
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        command = f"""git submodule foreach 'git describe'"""
+        command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
+
+        if not is_dry_run:
+            if command_result.returncode != 0:
+                print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+                exit(1)
+
+            command = f"""git submodule foreach 'git push origin $(git describe)'"""
+            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
+
+            if command_result.returncode != 0:
+                print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+                exit(1)
+
+        self.step_complete()

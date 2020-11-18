@@ -69,20 +69,19 @@ def main():
             usage()
             assert False
 
-    if not list_only:
-        if release_dir == "" or release_dot_x_version == "":
-            print(f"Error: both --repo and --release must be specified to run this script")
-            usage()
-            exit(1)
-        else:
-            print(f"chisel-release directory is {os.getcwd()}")
-            print(f"release specified is {release_dot_x_version}")
+    if release_dir == "" or release_dot_x_version == "":
+        print(f"Error: both --repo and --release must be specified to run this script")
+        usage()
+        exit(1)
+    else:
+        print(f"chisel-release directory is {os.getcwd()}")
+        print(f"release specified is {release_dot_x_version}")
 
+    if not list_only:
         # this will validate bump_tpe and exit on failure
         Tools.get_versioning_command(bump_type)
-
     else:
-        print(f"These are the steps to be executed for the {tools.task_name} script")
+        print(f"These are the steps to be executed for the {sys.argv[0]} script")
 
     tools = Tools("publish_snapshots", release_dir)
 
