@@ -77,6 +77,9 @@ The simplest case is the master branch of chisel-release.
 This indicates that the master branch of chisel-release uses the master branch of each submodule.
 
 #### Slightly more interesting is the 3.2.x branch of chisel-release:
+
+![](images/dot-x-submodules.svg)
+
 ```
 [submodule "chisel3"]
 	path = chisel3
