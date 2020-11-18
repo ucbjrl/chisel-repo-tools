@@ -15,8 +15,8 @@ def usage():
     print(f"     --stop-step <stop_step>      (or -e")
     print(f"     --list-only                  (or -l)")
     print(f"  bump_type must be in one of the following forms")
-    print(f"    bump_max       bumps the major number of the release")
-    print(f"    bump_min       bumps the minor number of the release")
+    print(f"    major          bumps the major number of the release")
+    print(f"    minor       bumps the minor number of the release")
     print(f"    rc<n>          set release candidate to the number n")
     print(f"    rc-clear       clears the release candidate number")
     print(f"    ds             create datestamped snapshot using todays date")
@@ -106,7 +106,7 @@ def main():
     tools.run_submodule_update_recursive(counter.next_step())
     tools.run_make_pull(counter.next_step())
     tools.git_add_dash_u(counter.next_step())
-    tools.git_commit(counter.next_step(), "Bump repo's -release versions")
+    tools.git_commit(counter.next_step(), "Bump -release versions")
     tools.git_push(counter.next_step())
 
     #
@@ -117,7 +117,7 @@ def main():
     tools.check_version_updates(counter.next_step())
     tools.add_and_commit_submodules(counter.next_step())
     tools.git_add_dash_u(counter.next_step())
-    tools.git_commit(counter.next_step(), "Bump repo's new -release versions")
+    tools.git_commit(counter.next_step(), "Bump new -release versions")
 
     #
     # Merge .x branches in to -release branches

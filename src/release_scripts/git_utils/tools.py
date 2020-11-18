@@ -37,10 +37,10 @@ def command_step(step_function):
         if list_only:
             print(f"step {step_number:3d} {function_name}")
         elif start_step <= step_number <= stop_step:
-            print(f"running step {step_number}")
+            print(f"running step {step_number} {function_name}")
             step_function(*args, **kwargs)
         else:
-            print(f"skipping step {step_number}")
+            print(f"skipping step {step_number} {function_name}")
 
     return wrapper
 
@@ -117,9 +117,9 @@ class Tools:
             args = f'-s {day_stamp} write'
         elif sub_command == "date-stamped-clear":
             args = f'-s "" write'
-        elif sub_command == "bump-max":
-            args = "bump-max"
-        elif sub_command == "bump-min":
+        elif sub_command == "major":
+            args = "bump-maj"
+        elif sub_command == "minor":
             args = "bump-min"
         elif sub_command == "rc-clear":
             args = '-r "" write'
@@ -129,6 +129,9 @@ class Tools:
                 print("Error: bad bump-type, release candidate must be of the form RC<candidate-number>")
                 exit(1)
             args = sub_command
+        else:
+            print("Error: bad bump-type, release candidate must be of major, minor, rc<n>, rc-clear, ds, ds<YYYMMDD>, ds-clear")
+            exit(1)
 
         return f"python {right_python_path}/{versioning_script} {args}"
 
@@ -419,8 +422,8 @@ class Tools:
     def merge_dot_x_branches_into_release_branches(self, step_number):
         """merges commits from .x branches into -release branches"""
         command = f"""
-        git submodule foreach
-            'if [ "$name" != "rocket-chip" ] && git diff --quiet --cached ; then
+        git submodule foreach '
+            if [ "$name" != "rocket-chip" ] && git diff --quiet --cached ; then
                  rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
                  xbranch=$(echo $rbranch | sed -e 's/-release/.x/');
                  git merge --no-ff --no-commit $xbranch;
@@ -483,7 +486,7 @@ class Tools:
     @command_step
     def publish_signed(self, step_number):
         """publish signed"""
-        command = f"make -f {self.default_makefile} +publishedSigned &> {self.log_name}"
+        command = f"make -f {self.default_makefile} +publishSigned &> {self.log_name}"
 
         command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
 
