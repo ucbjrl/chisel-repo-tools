@@ -1,3 +1,9 @@
+---
+# CURRENT DEVELOPMENT OF CHISEL-REPO-TOOLS
+# HAS BEEN MOVED TO THE [DEV](https://github.com/ucb-bar/chisel-repo-tools/tree/dev) BRANCH
+
+Original README.md below
+
 repo-tools is a Python Module providing various git/sbt support methods.
 
 - addlabels (WIP) - analyze/add labels to GitHub repo
