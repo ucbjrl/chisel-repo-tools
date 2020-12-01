@@ -1,4 +1,4 @@
-"""Updates chisel-release master branch to latest master hash"""
+"""Runs tests on the submodules on the current branch in specified repo"""
 
 import os
 import sys
@@ -9,7 +9,7 @@ from release_scripts.git_utils.step_counter import StepCounter
 
 
 def usage():
-    print(f"Usage: {sys.argv[0]} --repo <repo-dir> --branch <repo-dir-branch> [options]")
+    print(f"Usage: {sys.argv[0]} --repo <repo-dir> [options]")
     print(f"options are:")
     print(f"     --start-step <start_step>    (or -s)")
     print(f"     --stop-step <stop_step>      (or -e")
@@ -55,7 +55,7 @@ def main():
         usage()
         exit(1)
 
-    tools = Tools("build_masters", release_dir)
+    tools = Tools("build_submodules", release_dir)
 
     if not list_only:
         if release_dir == "":
@@ -71,24 +71,7 @@ def main():
     tools.set_stop_step(stop_step)
     tools.set_list_only(list_only)
 
-    tools.checkout_branch(counter.next_step(), "master")
-
-    tools.git_pull(counter.next_step())
-
-    tools.run_submodule_update_recursive(counter.next_step())
-
-    tools.run_make_pull(counter.next_step())
-
-    tools.run_make_clean_install(counter.next_step())
-
     tools.run_make_test(counter.next_step())
-
-    tools.git_add_dash_u(counter.next_step())
-
-    tools.git_commit(counter.next_step(), "Bump master branches")
-
-    tools.git_push(counter.next_step())
-
 
 if __name__ == "__main__":
     main()
