@@ -166,6 +166,12 @@ commands = {
         'writeConfig' : True,
         'writeFiles' : True
     },
+    'bump-min-minus' : {
+        'description' : 'lower the minor version number for the specified module in the version config cache and build files',
+        'prereqs' : ['minors', 'paths', 'versions'],
+        'writeConfig' : True,
+        'writeFiles' : True
+    },
     'dependency-order' : {
         'description' : 'generate dependency information (build order) from the dependency maps in the build files',
         'prereqs' : ['maps'],
@@ -835,6 +841,8 @@ USAGE
                 action = 'set' if not args.dryRun else '(would set)'
                 if args.command == 'bump-min':
                     setVersion = setVersion.bumpMinor()
+                if args.command == 'bump-min-minus':
+                    setVersion = setVersion.bumpMinorMinus()
                 elif args.command == 'bump-maj':
                     setVersion = setVersion.bumpMajor()
                 elif args.command == 'set':

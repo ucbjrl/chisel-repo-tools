@@ -9,8 +9,9 @@ from release_scripts.git_utils.step_counter import StepCounter
 
 
 def usage():
-    print(f"Usage: {sys.argv[0]} --repo <repo-dir> [options]")
+    print(f"Usage: {sys.argv[0]} --repo <repo-dir> --release <Z.Y> [options]")
     print(f"options are:")
+    print(f"     --release    <release>       full release number e.g. 3.4.1")
     print(f"     --dry-run")
     print(f"     --start-step <start_step>    (or -s)")
     print(f"     --stop-step <stop_step>      (or -e")
@@ -24,7 +25,7 @@ def main():
         opts, args = getopt.getopt(
             sys.argv[1:],
             "lhr:m:s:e:",
-            ["help", "repo=", "dry-run", "start-step=", "stop-step=", "list-only"]
+            ["help", "repo=", "release=", "dry-run", "start-step=", "stop-step=", "list-only"]
         )
     except getopt.GetoptError as err:
         print(err)
@@ -32,6 +33,7 @@ def main():
         sys.exit(2)
 
     release_dir = ""
+    release_version = ""
     start_step = -1
     stop_step = 1000
     list_only = False
@@ -41,6 +43,8 @@ def main():
     for option, value in opts:
         if option in ("--repo", "-r"):
             release_dir = value
+        elif option in ("--release", "-m"):
+            release_version = f"{value}"
         elif option == "--dry-run":
             is_dry_run = True
         elif option in ("--start-step", "-s"):
@@ -57,7 +61,7 @@ def main():
             usage()
             assert False
 
-    if release_dir == "":
+    if release_dir == "" or release_version == "":
         print(f"Error: both --repo and --release must be specified to run this script")
         usage()
         exit(1)
@@ -74,7 +78,7 @@ def main():
     tools.set_list_only(list_only)
 
     tools.tag_submodules(counter.next_step(), is_dry_run)
-    tools.tag_top_level(counter.next_step(), is_dry_run)
+    tools.tag_top_level(counter.next_step(), is_dry_run, release_version)
 
     tools.comment(
         counter.next_step(),

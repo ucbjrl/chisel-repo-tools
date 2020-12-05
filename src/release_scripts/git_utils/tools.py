@@ -522,51 +522,47 @@ class Tools:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
 
-        command = f"""git submodule foreach 'git describe'"""
-        command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
-
-        if command_result.returncode != 0:
-            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
-            exit(1)
-
-        command = f"""git submodule foreach 'git push origin $(git describe)'"""
-        command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
-
-        if command_result.returncode != 0:
-            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
-            exit(1)
-
-        self.step_complete()
-
-    @command_step
-    def tag_top_level(self, step_number, is_dry_run: bool):
-        """tag top level"""
-
-        subcommand = "echo" if is_dry_run else "eval"
-        command = f"""
-             git submodule foreach '
-                 rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
-                 xbranch=$(echo $rbranch | sed -e "s/-release/.x/");
-                 {subcommand} git tag $(../genTag.sh $xbranch)
-             '
-        """
-
-        command_result = subprocess.run(f"{command} &> {self.log_name}", shell=True, text=True, capture_output=False)
-        if command_result.returncode != 0:
-            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
-            exit(1)
-
-        command = f"""git submodule foreach 'git describe'"""
-        command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
-
         if not is_dry_run:
+            command = f"""git submodule foreach 'git describe'"""
+            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
+                                            capture_output=False)
+
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
 
             command = f"""git submodule foreach 'git push origin $(git describe)'"""
-            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True, capture_output=False)
+            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
+                                            capture_output=False)
 
+            if command_result.returncode != 0:
+                print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+                exit(1)
+
+        self.step_complete()
+
+    @command_step
+    def tag_top_level(self, step_number, is_dry_run: bool, release_version: str):
+        """tag top level"""
+
+        subcommand = "echo" if is_dry_run else "eval"
+        command = f"{subcommand} git tag $(./genTag.sh {release_version} v{release_version})"
+        command_result = subprocess.run(f"{command} &> {self.log_name}", shell=True, text=True, capture_output=False)
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        if not is_dry_run:
+            command = f"git describe"
+            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
+                                            capture_output=False)
+            if command_result.returncode != 0:
+                print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+                exit(1)
+
+            command = f"git push origin $(git describe)"
+            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
+                                            capture_output=False)
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)

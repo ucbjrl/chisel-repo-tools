@@ -139,15 +139,16 @@ def main():
     tools.git_add_dash_u(counter.next_step())
     tools.git_commit(counter.next_step(), f"Release {release_version} top level committed")
 
+    # Publish release
     #
-    # Push release
+    tools.publish_signed(counter.next_step())
+
+    #
+    # Push release, release numbers have been bumped by here
     #
     tools.push_submodules(counter.next_step())
     tools.git_push(counter.next_step())
 
-    # Publish release
-    #
-    tools.publish_signed(counter.next_step())
     tools.comment(
         counter.next_step(),
         f"""
