@@ -75,6 +75,8 @@ def main():
 
     tools.checkout_branch(counter.next_step(), release_version)
 
+    tools.git_pull(counter.next_step())
+
     tools.run_submodule_update_recursive(counter.next_step())
 
     tools.run_make_pull(counter.next_step())

@@ -85,33 +85,35 @@ python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --l
     release specified is 3.4.x
     These are the steps to be executed for the src/release_scripts/publish_new_release.py script
     step   1 checkout_branch
-    step   2 run_submodule_update_recursive
-    step   3 run_make_pull
-    step   4 git_add_dash_u
-    step   5 git_commit
-    step   6 git_push
-    step   7 checkout_branch
-    step   8 run_submodule_update_recursive
-    step   9 run_make_pull
-    step  10 git_add_dash_u
-    step  11 git_commit
-    step  12 git_push
-    step  13 bump_release
-    step  14 check_version_updates
-    step  15 add_and_commit_submodules
-    step  16 git_add_dash_u
-    step  17 git_commit
-    step  18 merge_dot_x_branches_into_release_branches
-    step  19 verify_merge
-    step  20 run_make_clean_install
-    step  21 run_make_test
-    step  22 commit_each_submodule
-    step  23 git_add_dash_u
-    step  24 git_commit
-    step  25 push_submodules
-    step  26 git_push
+    step   2 git_pull
+    step   3 run_submodule_update_recursive
+    step   4 run_make_pull
+    step   5 git_add_dash_u
+    step   6 git_commit
+    step   7 git_push
+    step   8 checkout_branch
+    step   9 git_pull
+    step  10 run_submodule_update_recursive
+    step  11 run_make_pull
+    step  12 git_add_dash_u
+    step  13 git_commit
+    step  14 git_push
+    step  15 bump_release
+    step  16 check_version_updates
+    step  17 add_and_commit_submodules
+    step  18 git_add_dash_u
+    step  19 git_commit
+    step  20 merge_dot_x_branches_into_release_branches
+    step  21 verify_merge
+    step  22 run_make_clean_install
+    step  23 run_make_test
+    step  24 commit_each_submodule
+    step  25 git_add_dash_u
+    step  26 git_commit
     step  27 publish_signed
-    step  28 comment
+    step  28 push_submodules
+    step  29 git_push
+    step  30 comment
 ```
 - Run the publish script for real
   - if we need to restart for some reason, --start-step and --stop-step can be used to control execution

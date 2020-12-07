@@ -95,6 +95,7 @@ def main():
     # pull in the latest '.x' branches and update the top level
     #
     tools.checkout_branch(counter.next_step(), release_dot_x_version)
+    tools.git_pull(counter.next_step())
     tools.run_submodule_update_recursive(counter.next_step())
     tools.run_make_pull(counter.next_step())
     tools.git_add_dash_u(counter.next_step())
@@ -105,6 +106,7 @@ def main():
     # pull in the latest '-release' branches and update the top level
     #
     tools.checkout_branch(counter.next_step(), release_version)
+    tools.git_pull(counter.next_step())
     tools.run_submodule_update_recursive(counter.next_step())
     tools.run_make_pull(counter.next_step())
     tools.git_add_dash_u(counter.next_step())
