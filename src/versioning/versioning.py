@@ -166,6 +166,12 @@ commands = {
         'writeConfig' : True,
         'writeFiles' : True
     },
+    'bump-min-minus' : {
+        'description' : 'lower the minor version number for the specified module in the version config cache and build files',
+        'prereqs' : ['minors', 'paths', 'versions'],
+        'writeConfig' : True,
+        'writeFiles' : True
+    },
     'dependency-order' : {
         'description' : 'generate dependency information (build order) from the dependency maps in the build files',
         'prereqs' : ['maps'],
@@ -691,7 +697,9 @@ def main(argv=None) -> int: # IGNORE:C0111
     program_version = "v%s" % __version__
     program_build_date = str(__updated__)
     program_version_message = '%%(prog)s %s (%s)' % (program_version, program_build_date)
-    program_shortdesc = __import__('__main__').__doc__.split("\n")[1]
+    #program_shortdesc = __import__('__main__').__doc__.split("\n")[1]
+    program_shortdesc = sys.argv[0]
+    #program_shortdesc = 'short-desc'
     program_license = '''%s
 
   Created by Jim Lawson on %s.
@@ -833,6 +841,8 @@ USAGE
                 action = 'set' if not args.dryRun else '(would set)'
                 if args.command == 'bump-min':
                     setVersion = setVersion.bumpMinor()
+                if args.command == 'bump-min-minus':
+                    setVersion = setVersion.bumpMinorMinus()
                 elif args.command == 'bump-maj':
                     setVersion = setVersion.bumpMajor()
                 elif args.command == 'set':

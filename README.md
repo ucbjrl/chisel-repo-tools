@@ -1,10 +1,56 @@
----
-# CURRENT DEVELOPMENT OF CHISEL-REPO-TOOLS
-# HAS BEEN MOVED TO THE [DEV](https://github.com/ucb-bar/chisel-repo-tools/tree/dev) BRANCH
+# Chisel Repo Tools
+**chisel-repo-tools** is a set of tools used for creating and updating chisel releases.
+It is designed to be used in conjuction with the [chisel-release](https://github.com/ucb-bar/chisel-release) repository.
 
-Original README.md below
+## Release processes
+There are several parts here
+### Release python scripts
+The python scripts the various release processes are in the src/release_scripts directory
+Currently there the following scripts
 
-repo-tools is a Python Module providing various git/sbt support methods.
+| script | what it does |
+| --- | --- |
+| build_masters | updates the chisel-release master with master versions of all BigN chisel repos and runs tests.|
+
+- scripts should respond to `--help` with mor information
+- scripts should have `--start-step <n>` to skip over tests while starting
+- scripts should have `--stop-step <n>` to stop after a particular step
+
+### How to use
+
+#### Other requirements
+Scripts that run tests on the BigN repos require a few external programs to be in the executable path.
+
+| program | version |  what it does |
+| --- | --- | --- |
+| verilator | \>= 4.016 | builds c++ circuit simulators |
+| yosys | \>= 0.9 | used for in firrtl equivalence tests |
+| z3 | \>= 4.8.9 | used to test SMT backend |
+ 
+#### Create a directory for your work
+#### Setup python
+We recommend using a python3 virtual enviroment.
+```
+source ~/.venvs/chisel-release-python/bin/activate
+```
+See: [Appendix Setting up python virtual environment]
+#### get tools
+```
+git clone https://github.com/ucb-bar/chisel-repo-tools
+```
+#### Get a release copy
+```
+git clone https://github.com/ucb-bar/chisel-release my-release-dir
+```
+#### Run your script
+```
+cd chisel-repo-tools
+export PYTHONPATH=`pwd`/src
+python src/release_scripts/<desired-script> --repo ../chisel-release 
+```
+
+## Python Modules
+is a Python Module providing various git/sbt support methods.
 
 - addlabels (WIP) - analyze/add labels to GitHub repo
 - citSupport is a Python Module providing support for managing continuous integration builds. It contains two main sub-modules:
@@ -45,3 +91,7 @@ see:
 - https://developer.github.com/v3/oauth_authorizations/
 - https://developer.github.com/v3/oauth/
 - https://github.com/blog/1509-personal-api-tokens
+
+## Appendix Setting up python virtual environment
+python -m ~/.venv chisel-release-python
+
