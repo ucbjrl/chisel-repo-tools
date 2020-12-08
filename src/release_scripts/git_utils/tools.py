@@ -39,6 +39,7 @@ def command_step(step_function):
         elif start_step <= step_number <= stop_step:
             print(f"running step {step_number} {function_name}")
             step_function(*args, **kwargs)
+            getattr(tool_object, 'step_complete')()
         else:
             print(f"skipping step {step_number} {function_name}")
 
@@ -60,7 +61,11 @@ class Tools:
         self.log_dir = f"log_{task_name}"
 
         if release_dir is None or release_dir == "":
-            print(f"Release dir cannot be empty, try --help to see options")
+            print(f"ERROR: Release dir cannot be empty, try --help to see options")
+            exit(1)
+
+        if not os.path.exists(release_dir):
+            print(f"ERROR: Release dir {release_dir} does not seem to exists, check your command line")
             exit(1)
 
         self.release_dir = release_dir
@@ -130,10 +135,41 @@ class Tools:
                 exit(1)
             args = sub_command
         else:
-            print("Error: bad bump-type, release candidate must be of major, minor, rc<n>, rc-clear, ds, ds<YYYMMDD>, ds-clear")
+            print(
+                "Error: bad bump-type, release candidate must be of major, minor, rc<n>, rc-clear, ds, ds<YYYMMDD>, ds-clear")
             exit(1)
 
         return f"python {right_python_path}/{versioning_script} {args}"
+
+    def run_command(self, *args, **kwargs):
+        """wrapper that writes command itself and it's output to the log file"""
+        command = args[0]
+        # this adds the command to the log file, starting the log file fresh
+        new_command = f"{command} &> {self.log_name}"
+        log_file = open(self.log_name, "w")
+        log_file.write(f"{new_command}\n")
+        log_file.close()
+
+        # actual command needs >> to append to the file that has the command as it's first line
+        new_command = f"{command} >> {self.log_name} 2>&1"
+        new_args = tuple([new_command] + list(args[1:]))
+        result = subprocess.run(*new_args, **kwargs)
+        return result
+
+    def run_command_append_to_log(self, *args, **kwargs):
+        """wrapper that writes command itself and it's output to the log file, appending to existing file if there"""
+        command = args[0]
+
+        # this adds the command to the log file, starting the log file fresh
+        new_command = f"{command} >> {self.log_name} 2>&1"
+        log_file = open(self.log_name, "a")
+        log_file.write(f"{new_command}\n")
+        log_file.close()
+
+        new_command = f"{command} >> {self.log_name} 2>&1"
+        new_args = tuple([new_command] + list(args[1:]))
+        result = subprocess.run(*new_args, **kwargs)
+        return result
 
     def set_execution_dir(self, execution_dir: str):
         self.execution_dir = execution_dir
@@ -171,8 +207,8 @@ class Tools:
     def set_list_only(self, value: bool):
         self.list_only = value
 
-    def step_complete(self, msg: str = ""):
-        print(f"step {self.current_step} - {self.current_function_name} is complete. {msg}")
+    def step_complete(self):
+        print(f"step {self.current_step} - {self.current_function_name} is complete.")
 
     def check_step(self, step_number: int) -> bool:
         step_number >= self.start_step and step_number <= self.stop_step
@@ -189,78 +225,68 @@ class Tools:
     def checkout_branch(self, step_number, branch_name: str) -> None:
         """checkout specified branch"""
 
-        command_result = subprocess.run(
-            f"git checkout {branch_name} &> {self.log_name}",
+        command_result = self.run_command(
+            f"git checkout {branch_name}",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"git checkout {branch_name} failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete(f"Now on branch {branch_name}")
-
     @command_step
     def git_pull(self, step_number: int) -> None:
         """runs git pull"""
 
-        command_result = subprocess.run(
-            f"git pull &> {self.log_name}",
+        command_result = self.run_command(
+            f"git pull",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"git pull failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def git_push(self, step_number: int) -> None:
         """runs git push"""
 
-        command_result = subprocess.run(
-            f"git push &> {self.log_name}",
+        command_result = self.run_command(
+            f"git push",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"git push failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def git_commit(self, step_number: int, commit_message: str) -> None:
         """runs git commit"""
 
-        command_result = subprocess.run(
-            f"git diff-index --quiet HEAD || git commit -m '{commit_message}' &> {self.log_name}",
+        command_result = self.run_command(
+            f"git diff-index --quiet HEAD || git commit -m '{commit_message}'",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"git commit failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def git_add_dash_u(self, step_number: int) -> None:
         """runs git pull"""
 
-        command_result = subprocess.run(
-            f"git add -u &> {self.log_name}",
+        command_result = self.run_command(
+            f"git add -u",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"git add -u failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def run_submodule_update_recursive(self, step_number):
         """run git submodule update --init --recursive"""
 
-        command_result = subprocess.run(
-            f"git submodule update --init --recursive &> {self.log_name}",
+        command_result = self.run_command(
+            f"git submodule update --init --recursive",
             shell=True,
             capture_output=False)
 
@@ -268,21 +294,17 @@ class Tools:
             print(f"git submodule update recursive failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def run_make_pull(self, step_number):
         """run make pull"""
 
-        command_result = subprocess.run(
-            f"make -f {self.default_makefile} pull &> {self.log_name}",
+        command_result = self.run_command(
+            f"make -f {self.default_makefile} pull",
             shell=True,
             capture_output=False)
         if command_result.returncode != 0:
             print(f"make pull failed, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def git_merge_masters_into_dot_x(self, step_number):
@@ -291,9 +313,9 @@ class Tools:
             git submodule foreach '
                 if git diff --cached --quiet; then git merge --no-ff --no-commit master;
                 fi
-            '  &> {self.log_name}
+            ' 
         """
-        command_result = subprocess.run(
+        command_result = self.run_command(
             command,
             shell=True,
             capture_output=False)
@@ -301,14 +323,12 @@ class Tools:
             print(f"make pull failed, see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def run_make_clean_install(self, step_number):
         """run make clean install"""
 
-        command_result = subprocess.run(
-            f"make -j8 -f {self.default_makefile} clean install &> {self.log_name}",
+        command_result = self.run_command(
+            f"make -j8 -f {self.default_makefile} clean install",
             shell=True,
             capture_output=False)
 
@@ -317,21 +337,19 @@ class Tools:
                 f"make -j8 -f {self.default_makefile} clean install failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def run_make_test(self, step_number):
         """run make test"""
 
         def is_external_program_present(command: str):
-            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, capture_output=False)
+            command_result = self.run_command_append_to_log(command, shell=True, capture_output=False)
             if command_result.returncode != 0:
                 just_command = command.split(' ')[0]
                 print(f"Required: {just_command} failed, is it installed?, see {self.log_name} for details")
                 exit(1)
 
         def show_errors() -> bool:
-            check_result = subprocess.run(
+            check_result = self.run_command(
                 f"""grep '\\[error\\]' {self.log_name}""",
                 shell=True,
                 text=True,
@@ -352,8 +370,8 @@ class Tools:
         is_external_program_present(f"yosys -V")
         is_external_program_present(f"z3 --version")
 
-        command_result = subprocess.run(
-            f"make -j8 -f {self.default_makefile} test >> {self.log_name} 2>&1",
+        command_result = self.run_command_append_to_log(
+            f"make -j8 -f {self.default_makefile} test",
             shell=True,
             capture_output=False)
 
@@ -365,58 +383,48 @@ class Tools:
         if show_errors():
             exit(1)
 
-        self.step_complete()
-
     @command_step
     def verify_merge(self, step_number):
         """verify merge"""
 
         command = Tools.get_versioning_command("verify")
-        command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, capture_output=False)
+        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def bump_release(self, step_number, bump_type: str):
         """bump release versions of submodules"""
 
         command = Tools.get_versioning_command(bump_type)
-        command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, capture_output=False)
+        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def check_version_updates(self, step_number):
         """check that updating the version seems to be ok"""
         command = f"git diff --submodule=diff"
-        command_result = subprocess.run(f"{command} >& {self.log_name}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def add_and_commit_submodules(self, step_number):
         """add and commit all submodules"""
         command = f"""git submodule foreach 'git add -u && git commit -m "Bump version strings." '"""
 
-        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=True)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=True)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def merge_dot_x_branches_into_release_branches(self, step_number):
@@ -430,26 +438,22 @@ class Tools:
             fi'
         """
 
-        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def check_dot_x_merge_status(self, step_number):
         """look for any obvious error from merge_dot_x_branches_into_release_branches step"""
         command = f"git status -b uno --ignore-submodules=untracked"
 
-        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def commit_each_submodule(self, step_number):
@@ -462,47 +466,39 @@ class Tools:
             '
         """
 
-        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def push_submodules(self, step_number):
         """push each submodule"""
         command = f"""git submodule foreach 'git push'"""
 
-        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def publish_signed(self, step_number):
         """publish signed"""
-        command = f"make -f {self.default_makefile} +publishSigned &> {self.log_name}"
+        command = f"make -f {self.default_makefile} +publishSigned"
 
-        command_result = subprocess.run(f"{command}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
-
-        self.step_complete()
 
     @command_step
     def comment(self, step_number, message: str):
         """comment"""
 
         print(message)
-
-        self.step_complete()
 
     @command_step
     def tag_submodules(self, step_number, is_dry_run: bool):
@@ -517,29 +513,27 @@ class Tools:
              '
         """
 
-        command_result = subprocess.run(f"{command} &> {self.log_name}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
 
         if not is_dry_run:
             command = f"""git submodule foreach 'git describe'"""
-            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
-                                            capture_output=False)
+            command_result = self.run_command_append_to_log(command, shell=True, text=True,
+                                                            capture_output=False)
 
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
 
             command = f"""git submodule foreach 'git push origin $(git describe)'"""
-            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
-                                            capture_output=False)
+            command_result = self.run_command_append_to_log(command, shell=True, text=True,
+                                                            capture_output=False)
 
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
-
-        self.step_complete()
 
     @command_step
     def tag_top_level(self, step_number, is_dry_run: bool, release_version: str):
@@ -547,24 +541,22 @@ class Tools:
 
         subcommand = "echo" if is_dry_run else "eval"
         command = f"{subcommand} git tag $(./genTag.sh {release_version} v{release_version})"
-        command_result = subprocess.run(f"{command} &> {self.log_name}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
 
         if not is_dry_run:
             command = f"git describe"
-            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
-                                            capture_output=False)
+            command_result = self.run_command_append_to_log(command, shell=True, text=True,
+                                                            capture_output=False)
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
 
             command = f"git push origin $(git describe)"
-            command_result = subprocess.run(f"{command} >> {self.log_name} 2>&1", shell=True, text=True,
-                                            capture_output=False)
+            command_result = self.run_command_append_to_log(command, shell=True, text=True,
+                                                            capture_output=False)
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
-
-        self.step_complete()
