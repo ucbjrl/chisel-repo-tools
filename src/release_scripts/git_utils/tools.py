@@ -120,6 +120,14 @@ class Tools:
             now = datetime.now()
             day_stamp = now.strftime("%Y%m%d")
             args = f'-s {day_stamp} write'
+        elif sub_command.startswith("ds"):
+            ds_result = re.search('ds(\d{8})', sub_command)
+            if ds_result:
+                day_stamp = ds_result.group(1)
+                args = f'-s {day_stamp} write'
+            else:
+                print("Error: could not find plausible 8 digit YYYYMMDD date after ds bump-type")
+                exit(1)
         elif sub_command == "date-stamped-clear":
             args = f'-s "" write'
         elif sub_command == "major":
@@ -142,28 +150,15 @@ class Tools:
         return f"python {right_python_path}/{versioning_script} {args}"
 
     def run_command(self, *args, **kwargs):
-        """wrapper that writes command itself and it's output to the log file"""
-        command = args[0]
-        # this adds the command to the log file, starting the log file fresh
-        new_command = f"{command} &> {self.log_name}"
-        log_file = open(self.log_name, "w")
-        log_file.write(f"{new_command}\n")
-        log_file.close()
-
-        # actual command needs >> to append to the file that has the command as it's first line
-        new_command = f"{command} >> {self.log_name} 2>&1"
-        new_args = tuple([new_command] + list(args[1:]))
-        result = subprocess.run(*new_args, **kwargs)
-        return result
-
-    def run_command_append_to_log(self, *args, **kwargs):
         """wrapper that writes command itself and it's output to the log file, appending to existing file if there"""
         command = args[0]
 
         # this adds the command to the log file, starting the log file fresh
         new_command = f"{command} >> {self.log_name} 2>&1"
+        now = datetime.now()
+        time_stamp = now.strftime("%Y%m%d-%H%M%S")
         log_file = open(self.log_name, "a")
-        log_file.write(f"{new_command}\n")
+        log_file.write(f"{time_stamp}: {new_command}\n")
         log_file.close()
 
         new_command = f"{command} >> {self.log_name} 2>&1"
@@ -342,7 +337,7 @@ class Tools:
         """run make test"""
 
         def is_external_program_present(command: str):
-            command_result = self.run_command_append_to_log(command, shell=True, capture_output=False)
+            command_result = self.run_command(command, shell=True, capture_output=False)
             if command_result.returncode != 0:
                 just_command = command.split(' ')[0]
                 print(f"Required: {just_command} failed, is it installed?, see {self.log_name} for details")
@@ -370,7 +365,7 @@ class Tools:
         is_external_program_present(f"yosys -V")
         is_external_program_present(f"z3 --version")
 
-        command_result = self.run_command_append_to_log(
+        command_result = self.run_command(
             f"make -j8 -f {self.default_makefile} test",
             shell=True,
             capture_output=False)
@@ -520,16 +515,16 @@ class Tools:
 
         if not is_dry_run:
             command = f"""git submodule foreach 'git describe'"""
-            command_result = self.run_command_append_to_log(command, shell=True, text=True,
-                                                            capture_output=False)
+            command_result = self.run_command(command, shell=True, text=True,
+                                              capture_output=False)
 
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
 
             command = f"""git submodule foreach 'git push origin $(git describe)'"""
-            command_result = self.run_command_append_to_log(command, shell=True, text=True,
-                                                            capture_output=False)
+            command_result = self.run_command(command, shell=True, text=True,
+                                              capture_output=False)
 
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
@@ -548,15 +543,15 @@ class Tools:
 
         if not is_dry_run:
             command = f"git describe"
-            command_result = self.run_command_append_to_log(command, shell=True, text=True,
-                                                            capture_output=False)
+            command_result = self.run_command(command, shell=True, text=True,
+                                              capture_output=False)
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
 
             command = f"git push origin $(git describe)"
-            command_result = self.run_command_append_to_log(command, shell=True, text=True,
-                                                            capture_output=False)
+            command_result = self.run_command(command, shell=True, text=True,
+                                              capture_output=False)
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
