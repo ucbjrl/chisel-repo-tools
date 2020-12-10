@@ -34,6 +34,7 @@ def main():
                             help='list command step, do not execute', default=False)
 
         args = parser.parse_args()
+
         release_dir = args.release_dir
         release_version = f"{args.major_version}.x"
         start_step = args.start_step
@@ -61,18 +62,23 @@ def main():
         tools.git_pull(counter.next_step())
         tools.run_submodule_update_recursive(counter.next_step())
         tools.run_make_pull(counter.next_step())
-        tools.verify_merge(counter.next_step())
 
         tools.bump_release(counter.next_step(), bump_type)
+
+        # TODO: It is not unusual for this step to give errors on rocket, template and tutorials, fix this
+        tools.verify_merge(counter.next_step())
 
         tools.run_make_clean_install(counter.next_step())
         tools.run_make_test(counter.next_step())
 
+        # TODO: This step will typically require a password to be entered in terminal window, fix this
         tools.publish_signed(counter.next_step())
 
-        tools.git_add_dash_u(counter.next_step())
-        tools.git_commit(counter.next_step(), f"Release {release_version} top level updated")
-        tools.git_push(counter.next_step())
+        # TODO: Currently this does not update chisel-release repo with any pointers to dated timestamp release
+        # Should it, should the version numbers with datestamps be what's in the current Z.Y.x branch
+        # tools.git_add_dash_u(counter.next_step())
+        # tools.git_commit(counter.next_step(), f"Release {release_version} top level updated")
+        # tools.git_push(counter.next_step())
     except Exception as e:
         print(e)
         sys.exit(2)

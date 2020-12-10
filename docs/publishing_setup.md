@@ -5,7 +5,7 @@ Do you have `sbt` installed. If not start with [Installing sbt](https://www.scal
 Once you have sbt installed, it is currently necessary to have the following global setting done
 in `~/.sbt/1.0/plugins` add the following line to the beginning of the `plugins.sbt` file
 ```scala
-addSbtPlugin("com.geirsson" % "sbt-ci-release" % "1.5.4")
+addSbtPlugin("com.jsuereth" % "sbt-pgp" % "2.0.1")
 ```
 This line is may be unnecessary in the future but it avoids issues that return errors like one of
 ```
