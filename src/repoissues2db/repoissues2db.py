@@ -63,9 +63,10 @@ class areaRE:
         self.re = re.compile(self.reString)
 
 class WorkContext:
-    def __init__(self, path, since):
+    def __init__(self, path, since, clear_issues: bool = False):
         self.path = path
         self.since = since
+        self.clear_issues = clear_issues
 
 def doWork(wc, verbose):
     modName = __name__ + '.doWork'
@@ -89,17 +90,24 @@ def doWork(wc, verbose):
     client = MongoClient()
     db = client['git-' + repo.name]
     issueDB = db['issues']
+    if wc.clear_issues:
+        issueDB.drop()
+
     eventDB = db['issue_events']
     commitDB = db['pr_commits']
+
     if not isRepoLocal:
         # Build the query for GitHub - keep it pretty simple
         query = 'repo:' + repo.full_name
         if since:
-            query += ' closed:>' + since
+            query += ' closed:' + since
         # Grab each issue and insert it into the database
         issues = repoObj.gh.search_issues(query)
         assert isinstance(issues, SearchIterator)
+        issue_count = 0
         for issue in issues:
+            issue_count += 1
+            print(f"MMMMMM Issue: {issue_count} {issue.as_dict}")
             assert isinstance(issue, IssueSearchResult)
             issueId = issue.issue.id
             num = issue.issue.number
@@ -124,6 +132,7 @@ def doWork(wc, verbose):
                 else:
                     print('SI' + ' '.join([str(issueId), str(num)]))
 
+    # exit(2)
     if True:
         for dbIssue in issueDB.find({}):
             issueId = dbIssue['number']
@@ -168,7 +177,7 @@ def doWork(wc, verbose):
 
 
 def main(argv=None): # IGNORE:C0111
-    '''Command line options.'''
+    """Command line options."""
 
     if argv is None:
         argv = sys.argv
@@ -201,6 +210,7 @@ USAGE
         parser.add_argument("-v", "--verbose", dest="verbose", action="count", help="set verbosity level [default: %(default)s]")
         parser.add_argument('-V', '--version', action='version', version=program_version_message)
         parser.add_argument('-r', '--repo', dest='repo', help='repository to slurp', default='.', metavar='path')
+        parser.add_argument('-c', '--clear-issues', dest='clear_issues', help='clear data in issues db', default=False)
         parser.add_argument('-s', '--since', dest='since', help='since (YYYY-MM-DD)', default=None)
 
         # Process arguments
@@ -210,7 +220,7 @@ USAGE
 
         if verbose > 0:
             print("Verbose mode on")
-        workContext = WorkContext(args.repo, args.since)
+        workContext = WorkContext(args.repo, args.since, args.clear_issues)
 
         # Install the signal handler to catch SIGTERM
         signal.signal(signal.SIGTERM, sigterm)
