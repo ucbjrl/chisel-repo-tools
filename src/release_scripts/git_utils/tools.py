@@ -290,6 +290,19 @@ class Tools:
             exit(1)
 
     @command_step
+    def run_submodule_fetch_from_origin(self, step_number):
+        """run git submodule foreach 'git fetch origin'"""
+
+        command_result = self.run_command(
+            f"git submodule foreach 'git fetch origin'",
+            shell=True,
+            capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"git submodule foreach 'git fetch origin' failed, see {self.log_name} for details")
+            exit(1)
+
+    @command_step
     def run_make_pull(self, step_number):
         """run make pull"""
 
@@ -394,7 +407,95 @@ class Tools:
         """bump release versions of submodules"""
 
         command = Tools.get_versioning_command(bump_type)
-        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, capture_output=False)
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+    @command_step
+    def populate_db_with_request_issues(self, step_number, date_stamp: str, clear_db: bool):
+        """populate db with request issues"""
+
+        clear_db_flag = "--clear-issues" if clear_db else ""
+        command = f"""
+        git submodule foreach '
+          cd .. &&
+          python $PYTHONPATH/repoissues2db/repoissues2db.py -r $name -s {date_stamp} {clear_db_flag}
+        '
+        """
+
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+    @command_step
+    def verify_version_tag(self, step_number):
+        """verify version tag"""
+
+        command = """
+            git submodule foreach '
+                branch=$(sh ../major-version-from-branch.sh) && tags=($(git tag -l --sort=v:refname |
+                grep -v SNAPSHOT |
+                tail -n 2));
+                echo ${tags[0]} .. ${tags[1]}
+            '
+        """
+
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+    @command_step
+    def generate_git_log_one_liners(self, step_number):
+        """generate git log one liners"""
+
+        command = """
+            git submodule foreach '
+                if [ $name != "chisel-template" -a $name != "chisel-tutorial" ]; then
+                    branch=$(sh ../major-version-from-branch.sh) &&
+                    tags=($(git tag -l --sort=v:refname |
+                    grep -v SNAPSHOT |
+                    tail -n 2));
+                    echo repo: $name branch $branch tags ${tags[0]} .. ${tags[1]};
+                    git log --oneline ${tags[0]}..${tags[1]} > releaseNotes.${tags[1]}
+                fi
+            '
+        """
+
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+    @command_step
+    def generate_changelog(self, step_number):
+        """generate changelog"""
+
+        # I am not certain why output here is not captured in the log file, but I don't really want it there
+        # anyway and the explicit redirect to changelog.txt within redirect of run_command seems to work
+
+        if os.path.exists("changelog.txt"):
+            os.remove("changelog.txt")
+
+        command = """
+            git submodule foreach '
+                if [ $name != "chisel-template" -a $name != "chisel-tutorial" ]; then
+                    branch=$(sh ../major-version-from-branch.sh) &&
+                    tags=($(git tag -l --sort=v:refname |
+                    grep -v SNAPSHOT | tail -n 2));
+                    echo ${tags[1]};
+                    python $PYTHONPATH/gitlog2releasenotes/gitlog2releasenotes.py -b git-$name releaseNotes.${tags[1]} >> ../changelog.txt
+                fi
+            '
+        """
+
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
@@ -404,7 +505,7 @@ class Tools:
     def check_version_updates(self, step_number):
         """check that updating the version seems to be ok"""
         command = f"git diff --submodule=diff"
-        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, text=True, capture_output=False)
+        command_result = self.run_command(f"{command}", shell=True, text=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")

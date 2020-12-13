@@ -10,7 +10,7 @@ found should cause these pages to be updated.
 
 ### [Release Process Details](release_process_details.md)
 
-### [Generating Change Logs](change_log.md)
+### [Generating Change Logs](generate_changelog.md)
 
 ## Setup and General information
 
