@@ -252,8 +252,8 @@ def doWork(wc, verbose):
             rnType = 'rn' if 'rn' in categorizedReleaseNotes[key] else 'c'
             text = '\n'.join(categorizedReleaseNotes[key][rnType])
             asciiText = text.encode('ascii', 'replace').decode()
-            print ('(#%d) %s' % (key, asciiText))
-            print ()
+            print('%s (#%d)' % (asciiText, key))
+            print()
     return 0
 
 

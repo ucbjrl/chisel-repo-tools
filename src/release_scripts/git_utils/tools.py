@@ -486,6 +486,7 @@ class Tools:
         command = """
             git submodule foreach '
                 if [ $name != "chisel-template" -a $name != "chisel-tutorial" ]; then
+                    echo $name >> ../changelog.txt ;
                     branch=$(sh ../major-version-from-branch.sh) &&
                     tags=($(git tag -l --sort=v:refname |
                     grep -v SNAPSHOT | tail -n 2));
