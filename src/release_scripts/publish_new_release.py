@@ -93,7 +93,8 @@ def main():
         #
         # Test that everything compiles and tests with new release numbers
         #
-        tools.run_make_clean_install(counter.next_step())
+        tools.run_make_clean(counter.next_step())
+        tools.run_make_install(counter.next_step())
         tools.run_make_test(counter.next_step())
 
         #
