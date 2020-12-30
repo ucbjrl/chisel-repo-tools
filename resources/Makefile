@@ -31,9 +31,12 @@ NEED_PUBLISHING = compile test +compile +test
 # Set a Make variable with "publishLocal" if we need to add publishLocal
 #  to the sbt command list.
 define doSBT
+# [chick] remove line that does special handling for rocket-chip
+# $(eval publishlocal=$(if $(filter $(NEED_PUBLISHING),$(1)),$(if $(findstring +,$(1)),+publishLocal,publishLocal)))
+# 	for c in $(EXPLICIT_SUBMODULES); do ( echo $$c && cd $$c && $(SBT) $(1) $(publishlocal) ) || exit 1; done
+# 	$(if $(and $(filter $(EXPLICIT_SUBMODULES),dsptools),$(filter $(EXPLICIT_SUBMODULES),rocket-chip)),echo rocket-dsptools && cd dsptools && $(SBT) "project rocket-dsptools" "$(1)" || exit 1)
 $(eval publishlocal=$(if $(filter $(NEED_PUBLISHING),$(1)),$(if $(findstring +,$(1)),+publishLocal,publishLocal)))
 	for c in $(EXPLICIT_SUBMODULES); do ( echo $$c && cd $$c && $(SBT) $(1) $(publishlocal) ) || exit 1; done
-	$(if $(and $(filter $(EXPLICIT_SUBMODULES),dsptools),$(filter $(EXPLICIT_SUBMODULES),rocket-chip)),echo rocket-dsptools && cd dsptools && $(SBT) "project rocket-dsptools" "$(1)" || exit 1)
 endef
 
 +clean +publishLocal +test +publishLocalSigned +publishSigned:

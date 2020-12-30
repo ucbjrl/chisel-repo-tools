@@ -38,7 +38,7 @@ cd ..
 git clone https://github.com/ucb-bar/chisel-repo-tools.git
 cd chisel-repo-tools
 ```
-### Export a bunch of things to make life eaiser (and the scripts work)
+### Export a bunch of things to make life easier (and the scripts work)
 ```
 export PYTHONPATH=`pwd`/src
 export VERSIONING=`pwd`/src/versioning/versioning.py

@@ -1,0 +1,6 @@
+conditions:
+  - status-success=Travis CI - Pull Request
+branches:
+  - 1.2.x
+  - 1.3.x
+  - 1.4.x

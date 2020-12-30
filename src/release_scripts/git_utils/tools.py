@@ -336,13 +336,41 @@ class Tools:
         """run make clean install"""
 
         command_result = self.run_command(
-            f"make -j8 -f {self.default_makefile} clean install",
+            f"make -j4 -f {self.default_makefile} clean install",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j8 -f {self.default_makefile} clean install failed ({command_result.returncode}), see {self.log_name} for details")
+                f"make -j4 -f {self.default_makefile} clean install failed ({command_result.returncode}), see {self.log_name} for details")
+            exit(1)
+
+    @command_step
+    def run_make_clean(self, step_number):
+        """run make clean"""
+
+        command_result = self.run_command(
+            f"make -j4 -f {self.default_makefile} clean",
+            shell=True,
+            capture_output=False)
+
+        if command_result.returncode != 0:
+            print(
+                f"make -j4 -f {self.default_makefile} clean failed ({command_result.returncode}), see {self.log_name} for details")
+            exit(1)
+
+    @command_step
+    def run_make_install(self, step_number):
+        """run make install"""
+
+        command_result = self.run_command(
+            f"make -j4 -f {self.default_makefile} install",
+            shell=True,
+            capture_output=False)
+
+        if command_result.returncode != 0:
+            print(
+                f"make -j4 -f {self.default_makefile} install failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
     @command_step
@@ -370,7 +398,7 @@ class Tools:
                 print(f"Errors ({len(error_lines)} found during {self.current_function_name}")
                 for line in error_lines:
                     print(line)
-                print(f"make -j8 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
+                print(f"make -j4 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
 
             return has_errors
 
@@ -379,12 +407,12 @@ class Tools:
         is_external_program_present(f"z3 --version")
 
         command_result = self.run_command(
-            f"make -j8 -f {self.default_makefile} test",
+            f"make -j4 -f {self.default_makefile} test",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j8 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
+            print(f"make -j4 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
             show_errors()
             exit(1)
 
@@ -486,11 +514,11 @@ class Tools:
         command = """
             git submodule foreach '
                 if [ $name != "chisel-template" -a $name != "chisel-tutorial" ]; then
-                    echo $name >> ../changelog.txt ;
                     branch=$(sh ../major-version-from-branch.sh) &&
                     tags=($(git tag -l --sort=v:refname |
                     grep -v SNAPSHOT | tail -n 2));
-                    echo ${tags[1]};
+                    echo $name ${tags[1]};
+                    echo $name ${tags[1]} >> ../changelog.txt;
                     python $PYTHONPATH/gitlog2releasenotes/gitlog2releasenotes.py -b git-$name releaseNotes.${tags[1]} >> ../changelog.txt
                 fi
             '
@@ -572,7 +600,13 @@ class Tools:
     @command_step
     def push_submodules(self, step_number):
         """push each submodule"""
-        command = f"""git submodule foreach 'git push'"""
+        command = f"""
+            git submodule foreach '
+                if [ $name != rocket-chip ] ; then
+                    git push
+                fi
+            '
+        """
 
         command_result = self.run_command(command, shell=True, text=True, capture_output=False)
 
