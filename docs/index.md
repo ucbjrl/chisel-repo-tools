@@ -2,15 +2,18 @@
 ## The tools set for producing chisel releases
 The pages here are taken from the release document authored by Jim Lawson.
 This repo implements most of the information herein.
-The scripts are the final ground truth over the current process and differences
-found should cause these pages to be updated.
+The scripts are the final ground truth over the current process and differences found should cause these pages to be
+updated.
 
 ## Overview
+
 ### [Release Basics](release_basics.md)
 
 ### [Release Process Details](release_process_details.md)
 
 ### [Generating Change Logs](generate_changelog.md)
+
+### [Generating a Mergify File](generate_mergify.md)
 
 ## Setup and General information
 
