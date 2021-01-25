@@ -13,7 +13,6 @@ pip install pygithub
 ```
 ```
 pip install -r resources/requirements.txt
-python src/release_scripts/build_masters.py -r ../pub-snap/ --stop-step 4
 ```
 
 ## Activating Python Virtual Environment
