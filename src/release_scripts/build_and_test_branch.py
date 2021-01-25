@@ -56,7 +56,7 @@ def main():
             usage()
             assert False
 
-    tools = Tools("publish_snapshots", release_dir)
+    tools = Tools("build_and_test_branch", release_dir)
 
     if not list_only:
         if release_dir == "" or release_version == "":
