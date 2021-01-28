@@ -1,4 +1,7 @@
-"""This script merges current masters into their corresponding Z.Y.x branches"""
+"""This script merges current masters into their corresponding Z.Y.x branches
+In general this should only be done before a major release or after creation of next
+Z.Y.x
+"""
 
 import os
 import sys

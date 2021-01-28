@@ -12,7 +12,7 @@ Currently there the following scripts
 | --- | --- |
 | build_masters | updates the chisel-release master with master versions of all BigN chisel repos and runs tests.|
 
-- scripts should respond to `--help` with mor information
+- scripts should respond to `--help` with more information
 - scripts should have `--start-step <n>` to skip over tests while starting
 - scripts should have `--stop-step <n>` to stop after a particular step
 
