@@ -1,11 +1,11 @@
-"""Runs tests on the submodules on the current branch in specified repo"""
+"""Builds and installs the submodules on the current branch in specified repo"""
 
 import os
 import sys
 import getopt
 
-from release_scripts.git_utils.tools import Tools
-from release_scripts.git_utils.step_counter import StepCounter
+from publish_utils.tools import Tools
+from publish_utils.step_counter import StepCounter
 
 
 def usage():
@@ -71,7 +71,7 @@ def main():
     tools.set_stop_step(stop_step)
     tools.set_list_only(list_only)
 
-    tools.run_make_test(counter.next_step())
+    tools.run_make_clean_install(counter.next_step())
 
 if __name__ == "__main__":
     main()

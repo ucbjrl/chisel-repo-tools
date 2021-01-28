@@ -1,19 +1,21 @@
-"""checks out the desired branch and builds all the submodules"""
+"""builds and tests the submodules on the current branch of repo"""
 
 import os
 import sys
 from argparse import ArgumentParser
 
-from release_scripts.git_utils.tools import Tools
-from release_scripts.git_utils.step_counter import StepCounter
+from publish_utils.tools import Tools
+from publish_utils.step_counter import StepCounter
 
 
 def usage():
-    print(f"Usage: {sys.argv[0]} --repo <repo-dir> --branch <repo-dir-branch> [options]")
+    print(f"Usage: {sys.argv[0]} --repo <repo-dir> --release <release-major-number> [options]")
     print(f"options are:")
     print(f"     --start-step <start_step>    (or -s)")
     print(f"     --stop-step <stop_step>      (or -e")
     print(f"     --list-only                  (or -l)")
+    print(f"")
+    print(f"  Note: --release (-m) defines the major of the release being snapshotted, e.g. '3.4'")
 
 
 def main():
@@ -22,7 +24,8 @@ def main():
         parser.add_argument('-r', '--release', dest='release_dir', action='store',
                             help='a directory which is a clone of chisel-release', required=True)
         parser.add_argument('-br', '--branch', dest='branch', action='store',
-                            help='branch to build', required=True)
+                            help='major number of snapshots being published', required=True)
+
         parser.add_argument('-b', '--start-step', dest='start_step', type=int, action='store',
                             help='command step to start on',
                             default=1)
@@ -35,15 +38,22 @@ def main():
         args = parser.parse_args()
 
         release_dir = args.release_dir
+        branch = args.branch
         start_step = args.start_step
         stop_step = args.stop_step
         list_only = args.list_only
         counter = StepCounter()
 
-        tools = Tools("build_branch", release_dir)
+        tools = Tools("build_and_test_branch", release_dir)
 
         if not list_only:
-            print(f"chisel-release directory is {os.getcwd()}")
+            if release_dir == "" or branch == "":
+                print(f"Error: both --repo and --release must be specified to run this script")
+                usage()
+                exit(1)
+            else:
+                print(f"chisel-release directory is {os.getcwd()}")
+                print(f"release specified is {branch}")
         else:
             print(f"These are the steps to be executed for the {tools.task_name} script")
 
@@ -51,7 +61,7 @@ def main():
         tools.set_stop_step(stop_step)
         tools.set_list_only(list_only)
 
-        tools.checkout_branch(counter.next_step(), "master")
+        tools.checkout_branch(counter.next_step(), branch)
 
         tools.git_pull(counter.next_step())
 
@@ -59,11 +69,14 @@ def main():
 
         tools.run_make_pull(counter.next_step())
 
-        tools.run_make_install(counter.next_step())
+        tools.run_make_clean_install(counter.next_step())
 
-    except Exception as err:
-        print(err)
+        tools.run_make_test(counter.next_step())
+
+    except Exception as e:
+        print(e)
         sys.exit(2)
+
 
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ def load_versions_file(config_file_name: str) -> dict:
     return internal_configs
 
 
-versions_from_yaml = load_versions_file("../../../masters/version.yml")
+versions_from_yaml = load_versions_file("../../masters/version.yml")
 
 repo_versions = {}
 for key in versions_from_yaml.keys():

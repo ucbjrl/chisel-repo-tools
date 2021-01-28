@@ -1,11 +1,20 @@
 # Chisel Repo Tools
+
 ## The tools set for producing chisel releases
-The pages here are taken from the release document authored by Jim Lawson.
-This repo implements most of the information herein.
-The scripts are the final ground truth over the current process and differences found should cause these pages to be
-updated.
+
+The pages here are taken from the release document authored by Jim Lawson. This repo implements most of the information
+herein. The scripts are the final ground truth over the current process and differences found should cause these pages
+to be updated.
 
 ## Overview
+
+### How To Publish
+
+#### [Publish a SNAPSHOT release](publish_snapshots.md)
+
+#### [Publish a minor release](publish_minor_release.md)
+
+#### [Publish a major release](publish_major_release.md)
 
 ### [Release Basics](release_basics.md)
 
@@ -18,10 +27,6 @@ updated.
 ## Setup and General information
 
 ### [Python Virtual Environment Setup](python_venv_setup.md)
-
-### [Publishing a minor release](publish_minor_release.md)
-
-### [Publishing a SNAPSHOT release](publish_snapshots.md)
 
 ### [Release resources](resources.md)
 

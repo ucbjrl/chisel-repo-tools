@@ -1,57 +1,73 @@
-# Publishing a Minor release
+# Publishing a Major release
 
 ## Recipe
-This recipe presumes that one shell window is used.
-In practice, it is probably best to use two windows/tabs.
-That way it can be easier to debug steps being run in one
-window by looking at logs in the other.
+
+This recipe presumes that one shell window is used. In practice, it is probably best to use two windows/tabs. That way
+it can be easier to debug steps being run in one window by looking at logs in the other.
 > But you won't have problems like that, will you? Let's hope not.
 
 ### SetUp
-###Look over the [Publishing Setup](publishing_setup.md) to see if you have most of the
+
+### Look over the [Publishing Setup](publishing_setup.md) to see if you have most of the
+
 main dependencies available
+
 - Check the sbt environment
 - Is gpg installed?
 
 ### Look over the [Python Venv Setup](python_venv_setup.md) (VirtualEnvironment)
+
 - How to set up the python environment
 - Makes sure all necessary python libraries are installed.
 - Activate the python you want
+
 ```
 source ~/.virtualenvs/chisel-repo-tools/bin/activate
 ```
 
 ### Get the release data and tools
+
 - pick a directory to do your work in
+
 ```
 cd my-release-work-dir
 ```
+
 - Clone the chisel-release repo, that provides the repo data to be worked on
+
 ```
 git clone https://github.com/ucb-bar/chisel-release publish-3.4.1
 cd publish-3.4.1
 export REPO=`pwd`
 cd ..
 ```
+
 - Clone the tools for doing the release work
+
 ```
 git clone https://github.com/ucb-bar/chisel-repo-tools.git
 cd chisel-repo-tools
 ```
+
 ### Export a bunch of things to make life easier (and the scripts work)
+
 ```
 export PYTHONPATH=`pwd`/src
 export VERSIONING=`pwd`/src/versioning/versioning.py
 export GPG_TTY=$(tty)
 ```
+
 and perhaps, (still not sure if this helps or is necessary)
+
 ```
 export PGP_PASSPHRASE='<your pass key>'
 export PGP_SECRET='<your secret>'
 ```
 
 ### A Bit More Setup
+
 - Make sure script is present
+
 ```
 python src/release_scripts/publish_new_release.py   
 
@@ -74,10 +90,12 @@ python src/release_scripts/publish_new_release.py
     
       Note: --release (-m) defines the major of the release being snapshotted, e.g. '3.4'
 ```
-  - No args will show standard help info
+
+- No args will show standard help info
 - List the steps to reinforce what;s going on here
-  - Note use of $REPO to point to our chisel-release directory
-  - --list-only just shows the steps
+    - Note use of $REPO to point to our chisel-release directory
+    - --list-only just shows the steps
+
 ```
 python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --list-only
 
@@ -115,19 +133,22 @@ python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --l
     step  29 git_push
     step  30 comment
 ```
+
 - Run the publish script for real
-  - if we need to restart for some reason, --start-step and --stop-step can be used to control execution
+    - if we need to restart for some reason, --start-step and --stop-step can be used to control execution
 
 ```
 python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --bump-type minor
 ```
 
 > If any of the steps fail then the script will exit immediately and it will tell you where to look to find the
-> output of the failed step. In general the logging from each individual step will be in a 
+> output of the failed step. In general the logging from each individual step will be in a
 >
+
 ### Close and Publish the release on Sonatype
 
 This is an interactive GUI on the [oss.sonatype.org](https://oss.sonatype.org) website
+
 #### [Instructions to finalize release on sonatype](sonatype_finalize_release.md)
 
 ## Finish up
