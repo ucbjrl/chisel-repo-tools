@@ -25,7 +25,7 @@ snapshots.
 - Make sure script is present, let's run it with the help option
 
 ```
-chisel-repo-tools chick$ python src/release_scripts/publish_snapshots.py --help
+chisel-repo-tools chick$ python publish/publish_snapshots.py --help
 usage: publish_snapshots.py [-h] -r RELEASE_DIR -m MAJOR_VERSION [-d] [-o DATE_STAMP] [-b START_STEP]
                             [-e STOP_STEP] [-l]
 
@@ -54,7 +54,7 @@ optional arguments:
 > Note: `--major-version` is required even with `--list-only`
 
 ```
-python src/release_scripts/publish_snapshots.py --release $REPO --major-version 3.4 --dated-snapshot --list-only
+python publish/publish_snapshots.py --release $REPO --major-version 3.4 --dated-snapshot --list-only
 These are the steps to be executed for the publish_snapshots script
 step   1 checkout_branch
 step   2 git_pull
@@ -70,7 +70,7 @@ step   9 publish_signed
 ### Run it for real
 
 ```build
-python src/release_scripts/publish_snapshots.py --release $REPO --major-version 3.4 --dated-snapshot
+python publish/publish_snapshots.py --release $REPO --major-version 3.4 --dated-snapshot
 ```
 
 ### What can go wrong

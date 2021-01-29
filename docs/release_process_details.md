@@ -1,9 +1,9 @@
 # Release Process Details (06/25/20)
-This is the original documentation for running a release process. This document is realized in the 
-script `src/release_scripts/publish_new_release.py`. Some aspect of the process may vary from this
-original document but this is a good reference for the steps that have to happen.
-In this document Z.Y refers to the current (two-part) major number of the chisel eco-system. This number
-is not currently shared by all submodules of this. The scripts are aware of this and manage it.
+This is the original documentation for running a release process. This document is realized in the
+script `publish/publish_new_release.py`. Some aspect of the process may vary from this original document but this is a
+good reference for the steps that have to happen. In this document Z.Y refers to the current (two-part) major number of
+the chisel eco-system. This number is not currently shared by all submodules of this. The scripts are aware of this and
+manage it.
 
 ## Preparation
 User has cloned chisel-repo-tools and chisel-release in a common directory

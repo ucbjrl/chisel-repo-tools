@@ -69,10 +69,10 @@ export PGP_SECRET='<your secret>'
 - Make sure script is present
 
 ```
-python src/release_scripts/publish_new_release.py   
+python publish/publish_new_release.py   
 
     Error: both --repo and --release must be specified to run this script
-    Usage: src/release_scripts/publish_new_release.py --repo <repo-dir> --release <release-major-number> --bump-type <bump-type> [options]
+    Usage: publish/publish_new_release.py --repo <repo-dir> --release <release-major-number> --bump-type <bump-type> [options]
     options are:
          --repo       <repo>          repo most be a clone of chisel-release
          --release    <release>       release should be major number of release 3.4 implies branch 3.4.x
@@ -97,11 +97,11 @@ python src/release_scripts/publish_new_release.py
     - --list-only just shows the steps
 
 ```
-python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --list-only
+python publish/publish_new_release.py --repo $REPO --release 3.4 --list-only
 
     chisel-release directory is /Users/chick/Adept/dev/release-generators/chisel-repo-tools
     release specified is 3.4.x
-    These are the steps to be executed for the src/release_scripts/publish_new_release.py script
+    These are the steps to be executed for the publish/publish_new_release.py script
     step   1 checkout_branch
     step   2 git_pull
     step   3 run_submodule_update_recursive
@@ -138,7 +138,7 @@ python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --l
     - if we need to restart for some reason, --start-step and --stop-step can be used to control execution
 
 ```
-python src/release_scripts/publish_new_release.py --repo $REPO --release 3.4 --bump-type minor
+python publish/publish_new_release.py --repo $REPO --release 3.4 --bump-type minor
 ```
 
 > If any of the steps fail then the script will exit immediately and it will tell you where to look to find the
@@ -154,5 +154,5 @@ This is an interactive GUI on the [oss.sonatype.org](https://oss.sonatype.org) w
 ## Finish up
 
 ```
-python src/release_scripts/tag_new_release.py --repo $REPO
+python publish/tag_new_release.py --repo $REPO
 ```

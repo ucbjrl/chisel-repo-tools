@@ -17,7 +17,7 @@ def main():
 
     try:
         parser = ArgumentParser()
-        parser.add_argument('-r', '--release', dest='release_dir', action='store',
+        parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
                             help='a directory which is a clone of chisel-release', required=True)
         parser.add_argument('-m', '--major-version', dest='major_version', action='store',
                             help='major number of snapshots being published', required=True)

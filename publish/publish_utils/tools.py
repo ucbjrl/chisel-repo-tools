@@ -5,6 +5,7 @@ import subprocess
 import re
 
 from datetime import datetime
+from argparse import ArgumentParser
 
 
 def command_step(step_function):
@@ -38,8 +39,9 @@ def command_step(step_function):
             print(f"step {step_number:3d} {function_name}")
         elif start_step <= step_number <= stop_step:
             print(f"running step {step_number} {function_name}")
-            step_function(*args, **kwargs)
+            result = step_function(*args, **kwargs)
             getattr(tool_object, 'step_complete')()
+            return result
         else:
             print(f"skipping step {step_number} {function_name}")
 
@@ -69,7 +71,7 @@ class Tools:
             exit(1)
 
         self.release_dir = release_dir
-        self.execution_dir = os.getcwd()
+        self.execution_dir = os.path.dirname(os.path.abspath(__file__))
         os.chdir(release_dir)
         self.check_release_dir()
 
@@ -99,7 +101,18 @@ class Tools:
         # set this to True to only list the commands in the script
         self.list_only = False
         # default Makefile name, used for clean, pull, install, test
-        self.default_makefile = f"{self.execution_dir}/resources/Makefile"
+        self.default_makefile = f"{self.execution_dir}/../../resources/Makefile"
+
+    @staticmethod
+    def add_standard_cli_arguments(parser: ArgumentParser):
+        parser.add_argument('-b', '--start-step', dest='start_step', type=int, action='store',
+                            help='command step to start on',
+                            default=1)
+        parser.add_argument('-e', '--stop-step', dest='stop_step', type=int, action='store',
+                            help='command step to end on',
+                            default=10000)
+        parser.add_argument('-l', '--list-only', dest='list_only', action='store_true',
+                            help='just list command steps, do not execute', default=False)
 
     @staticmethod
     def get_versioning_command(sub_command: str) -> str:
@@ -161,7 +174,11 @@ class Tools:
         log_file.write(f"{time_stamp}: {new_command}\n")
         log_file.close()
 
-        new_command = f"{command} >> {self.log_name} 2>&1"
+        if kwargs.get('noredirect'):
+            kwargs.pop('noredirect', None)
+            new_command = f"{command}"
+        else:
+            new_command = f"{command} >> {self.log_name} 2>&1"
         new_args = tuple([new_command] + list(args[1:]))
         result = subprocess.run(*new_args, **kwargs)
         return result
@@ -227,6 +244,22 @@ class Tools:
         if command_result.returncode != 0:
             print(f"git checkout {branch_name} failed, see {self.log_name} for details")
             exit(1)
+
+    @command_step
+    def get_current_branch(self, step_number) -> str:
+        """gets the current branch in the release dir"""
+
+        command_result = self.run_command(
+            f"git branch --show-current",
+            shell=True,
+            capture_output=True,
+            noredirect=True
+        )
+        if command_result.returncode != 0:
+            print(f"git current branch failed, see {self.log_name} for details")
+            exit(1)
+        current_branch = str(command_result.stdout, 'utf-8').strip()
+        return current_branch
 
     @command_step
     def git_pull(self, step_number: int) -> None:

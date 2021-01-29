@@ -101,7 +101,7 @@ def main():
         f"""
         You are almost done
             - Follow steps in docs/sonatype_finalize_release.md
-            - Then src/release_scripts/tag_release
+            - Then publish/tag_release
             - Then run generate snapshots
         """
     )
