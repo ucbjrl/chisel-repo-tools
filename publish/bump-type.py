@@ -8,8 +8,8 @@ import os
 import sys
 import getopt
 
-from release_scripts.git_utils.tools import Tools
-from release_scripts.git_utils.step_counter import StepCounter
+from publish_utils.tools import Tools
+from publish_utils.step_counter import StepCounter
 
 
 def usage():
@@ -101,7 +101,7 @@ def main():
         f"""
         You are almost done
             - Follow steps in docs/sonatype_finalize_release.md
-            - Then src/release_scripts/tag_release
+            - Then publish/tag_release
             - Then run generate snapshots
         """
     )

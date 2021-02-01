@@ -26,7 +26,7 @@ the final text to the release notes for each repository for the release in quest
 ## The script you will be using is
 
 ```
-python src/release_scripts/generate_changelog.py
+python publish/generate_changelog.py
 ```
 
 Like other scripts from this directory it runs a series of commands.
@@ -34,7 +34,7 @@ Like other scripts from this directory it runs a series of commands.
 ## Running the script
 
 ``` 
-python src/release_scripts/generate_changelog.py --help
+python publish/generate_changelog.py --help
 usage: generate_changelog.py [-h] -r RELEASE_DIR -m MAJOR_VERSION [-d DATE_RANGE] [-c]
                              [-g GITHUB_TOKEN] [-b START_STEP] [-e STOP_STEP] [-l]
 
@@ -59,10 +59,10 @@ optional arguments:
 with steps
 
 ``` 
-python src/release_scripts/generate_changelog.py --release $REPO -m 3.4 --list-only
+python publish/generate_changelog.py --release $REPO -m 3.4 --list-only
 chisel-release directory is /Users/chick/Adept/dev/release-generators/chisel-repo-tools
 release specified is 3.4.x
-These are the steps to be executed for the src/release_scripts/generate_changelog.py script
+These are the steps to be executed for the publish/generate_changelog.py script
 step   1 checkout_branch
 step   2 git_pull
 step   3 run_submodule_update_recursive
@@ -76,7 +76,7 @@ step   8 generate_changelog
 To run.
 
 ``` 
-python src/release_scripts/generate_changelog.py --release $REPO --major-version 3.4 --date-range "2021-05-01..2021-05-31" --clear-db
+python publish/generate_changelog.py --release $REPO --major-version 3.4 --date-range "2021-05-01..2021-05-31" --clear-db
 ```
 
 ---

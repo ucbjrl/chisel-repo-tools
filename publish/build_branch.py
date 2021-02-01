@@ -4,8 +4,8 @@ import os
 import sys
 from argparse import ArgumentParser
 
-from release_scripts.git_utils.tools import Tools
-from release_scripts.git_utils.step_counter import StepCounter
+from publish_utils.tools import Tools
+from publish_utils.step_counter import StepCounter
 
 
 def usage():
@@ -19,18 +19,12 @@ def usage():
 def main():
     try:
         parser = ArgumentParser()
-        parser.add_argument('-r', '--release', dest='release_dir', action='store',
-                            help='a directory which is a clone of chisel-release', required=True)
+        parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
+                            help='a directory which is a clone of chisel-release', default=".")
         parser.add_argument('-br', '--branch', dest='branch', action='store',
                             help='branch to build', required=True)
-        parser.add_argument('-b', '--start-step', dest='start_step', type=int, action='store',
-                            help='command step to start on',
-                            default=1)
-        parser.add_argument('-e', '--stop-step', dest='stop_step', type=int, action='store',
-                            help='command step to end on',
-                            default=10000)
-        parser.add_argument('-l', '--list-only', dest='list_only', action='store_true',
-                            help='list command step, do not execute', default=False)
+
+        Tools.add_standard_cli_arguments(parser)
 
         args = parser.parse_args()
 
@@ -64,6 +58,7 @@ def main():
     except Exception as err:
         print(err)
         sys.exit(2)
+
 
 if __name__ == "__main__":
     main()

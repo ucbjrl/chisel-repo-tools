@@ -5,8 +5,7 @@ It is designed to be used in conjuction with the [chisel-release](https://github
 ## Release processes
 There are several parts here
 ### Release python scripts
-The python scripts the various release processes are in the src/release_scripts directory
-Currently there the following scripts
+The python scripts the various release processes are in the publish directory Currently there the following scripts
 
 | script | what it does |
 | --- | --- |
@@ -46,7 +45,7 @@ git clone https://github.com/ucb-bar/chisel-release my-release-dir
 ```
 cd chisel-repo-tools
 export PYTHONPATH=`pwd`/src
-python src/release_scripts/<desired-script> --repo ../chisel-release 
+python publish/<desired-script> --repo ../chisel-release 
 ```
 
 ## Python Modules

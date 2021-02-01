@@ -1,59 +1,46 @@
-"""publishes updates snapshot and publishes them"""
+"""publishes a new release, either major or minor"""
 
 import os
 import sys
 from argparse import ArgumentParser
-from datetime import datetime
 
-from release_scripts.git_utils.tools import Tools
-from release_scripts.git_utils.step_counter import StepCounter
+from publish_utils.tools import Tools
+from publish_utils.step_counter import StepCounter
 
 
 def main():
-    current_date = datetime.now().strftime("%Y%m%d")
-
     try:
         parser = ArgumentParser()
-        parser.add_argument('-r', '--release', dest='release_dir', action='store',
-                            help='a directory which is a clone of chisel-release', required=True)
+        parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
+                            help='a directory which is a clone of chisel-release default is "."', default=".")
         parser.add_argument('-m', '--major-version', dest='major_version', action='store',
-                            help='major number of snapshots being published', required=True)
-        parser.add_argument('-d', '--dated-snapshot', dest='is_dated_snapshot', action='store_true',
-                            help='add datestamp to snapshots',
-                            default=False)
-        parser.add_argument('-o', '--override-date', dest='date_stamp', action='store',
-                            help='overrides the date used for dated snapshots, format YYYYMMDD',
-                            default=current_date)
-        parser.add_argument('-b', '--start-step', dest='start_step', type=int, action='store',
-                            help='command step to start on',
-                            default=1)
-        parser.add_argument('-e', '--stop-step', dest='stop_step', type=int, action='store',
-                            help='command step to end on',
-                            default=10000)
-        parser.add_argument('-l', '--list-only', dest='list_only', action='store_true',
-                            help='list command step, do not execute', default=False)
+                            help='major number of release being bumped', required=True)
+        parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store', choices=['major', 'minor'],
+                            help='Is this a major or a minor release',
+                            required=True)
+        Tools.add_standard_cli_arguments(parser)
 
         args = parser.parse_args()
 
         release_dir = args.release_dir
         release_dot_x_version = f"{args.major_version}.x"
         release_version = f"{args.major_version}-release"
+        bump_type = args.bump_type
         start_step = args.start_step
         stop_step = args.stop_step
         list_only = args.list_only
-        date_stamp = args.date_stamp
-        bump_type = "date-stamped-clear" if not args.is_dated_snapshot else f"ds{date_stamp}"
         counter = StepCounter()
 
-        tools = Tools("publish_snapshots", release_dir)
+        print(f"chisel-release directory is {os.getcwd()}")
+        print(f"release specified is {release_dot_x_version}")
 
         if not list_only:
+            # this will validate bump_tpe and exit on failure
             Tools.get_versioning_command(bump_type)
-
-            print(f"chisel-release directory is {os.getcwd()}")
-            print(f"release specified is {release_dot_x_version}")
         else:
-            print(f"These are the steps to be executed for the {tools.task_name} script")
+            print(f"These are the steps to be executed for the {sys.argv[0]} script")
+
+        tools = Tools("publish_snapshots", release_dir)
 
         tools.set_start_step(start_step)
         tools.set_stop_step(stop_step)
@@ -94,10 +81,13 @@ def main():
         #
         # Merge .x branches in to -release branches
         tools.merge_dot_x_branches_into_release_branches(counter.next_step())
-        # TODO: It is not unusual for this step to give errors on rocket, template and tutorials, fix this
         tools.verify_merge(counter.next_step())
 
-        tools.run_make_clean_install(counter.next_step())
+        #
+        # Test that everything compiles and tests with new release numbers
+        #
+        tools.run_make_clean(counter.next_step())
+        tools.run_make_install(counter.next_step())
         tools.run_make_test(counter.next_step())
 
         #
@@ -107,7 +97,8 @@ def main():
         tools.git_add_dash_u(counter.next_step())
         tools.git_commit(counter.next_step(), f"Release {release_version} top level committed")
 
-        # TODO: This step will typically require a password to be entered in terminal window, fix this
+        # Publish release
+        #
         tools.publish_signed(counter.next_step())
 
         #
@@ -116,6 +107,15 @@ def main():
         tools.push_submodules(counter.next_step())
         tools.git_push(counter.next_step())
 
+        tools.comment(
+            counter.next_step(),
+            f"""
+            You are almost done
+                - Follow steps in docs/sonatype_finalize_release.md
+                - Then publish/tag_release
+                - Then run generate snapshots
+            """
+        )
     except Exception as e:
         print(e)
         sys.exit(2)

@@ -5,8 +5,8 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
-from release_scripts.git_utils.tools import Tools
-from release_scripts.git_utils.step_counter import StepCounter
+from publish_utils.tools import Tools
+from publish_utils.step_counter import StepCounter
 
 
 def main():
