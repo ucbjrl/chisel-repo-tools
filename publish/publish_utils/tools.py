@@ -1,6 +1,6 @@
 #
 
-import os, sys
+import os
 import subprocess
 import re
 
@@ -73,9 +73,9 @@ class Tools:
         self.release_dir = release_dir
         self.execution_dir = os.path.dirname(os.path.abspath(__file__))
         os.chdir(release_dir)
-        self.check_release_dir()
+        Tools.check_release_dir()
 
-        self.white_space = re.compile('\s')
+        self.white_space = re.compile(r'\s')
 
         if not os.path.exists(self.log_dir):
             os.mkdir(self.log_dir)
@@ -102,6 +102,10 @@ class Tools:
         self.list_only = False
         # default Makefile name, used for clean, pull, install, test
         self.default_makefile = f"{self.execution_dir}/../../resources/Makefile"
+        # current function being run
+        self.current_function_name = ""
+        # current log file name
+        self.log_name = ""
 
     @staticmethod
     def add_standard_cli_arguments(parser: ArgumentParser):
@@ -119,6 +123,7 @@ class Tools:
         python_path = os.getenv("PYTHONPATH")
         versioning_script = 'versioning/versioning.py'
 
+        right_python_path = ""
         try:
             right_python_path = next(
                 path for path in python_path.split(':') if os.path.exists(f"{path}/{versioning_script}"))
@@ -134,7 +139,7 @@ class Tools:
             day_stamp = now.strftime("%Y%m%d")
             args = f'-s {day_stamp} write'
         elif sub_command.startswith("ds"):
-            ds_result = re.search('ds(\d{8})', sub_command)
+            ds_result = re.search(r'ds(\d{8})', sub_command)
             if ds_result:
                 day_stamp = ds_result.group(1)
                 args = f'-s {day_stamp} write'
@@ -150,14 +155,15 @@ class Tools:
         elif sub_command == "rc-clear":
             args = '-r "" write'
         elif sub_command.startswith("rc"):
-            pattern = re.compile('rc(\d+)')
+            pattern = re.compile(r'rc(\d+)')
             if not pattern.match(sub_command):
                 print("Error: bad bump-type, release candidate must be of the form RC<candidate-number>")
                 exit(1)
             args = sub_command
         else:
             print(
-                "Error: bad bump-type, release candidate must be of major, minor, rc<n>, rc-clear, ds, ds<YYYMMDD>, ds-clear")
+                "Error: bad bump-type, release candidate must be of major, minor, rc<n>" +
+                ", rc-clear, ds, ds<YYYMMDD>, ds-clear")
             exit(1)
 
         return f"python {right_python_path}/{versioning_script} {args}"
@@ -222,10 +228,8 @@ class Tools:
     def step_complete(self):
         print(f"step {self.current_step} - {self.current_function_name} is complete.")
 
-    def check_step(self, step_number: int) -> bool:
-        step_number >= self.start_step and step_number <= self.stop_step
-
-    def check_release_dir(self):
+    @staticmethod
+    def check_release_dir():
         """Looks to see that target is a clone of chisel-release"""
         command_result = subprocess.run(["git", "remote", "-v"], text=True, capture_output=True)
         if command_result.returncode != 0:
@@ -703,22 +707,45 @@ class Tools:
     def tag_top_level(self, step_number, is_dry_run: bool, release_version: str):
         """tag top level"""
 
-        subcommand = "echo" if is_dry_run else "eval"
-        command = f"{subcommand} git tag $(./genTag.sh {release_version} v{release_version})"
-        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
+        command = f"git branch --show-current"
+        command_result = self.run_command(command, shell=True, text=True, capture_output=True, noredirect=True)
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
             exit(1)
 
-        if not is_dry_run:
-            command = f"git describe"
-            command_result = self.run_command(command, shell=True, text=True,
-                                              capture_output=False)
+        current_branch = command_result.stdout.strip()
+
+        command = f"git merge-base origin/{current_branch} HEAD"
+        command_result = self.run_command(command, shell=True, text=True, capture_output=True, noredirect=True)
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        hash = command_result.stdout.strip()
+
+        command = f"git rev-parse --short {hash}"
+        command_result = self.run_command(command, shell=True, text=True, capture_output=True, noredirect=True)
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+        short_hash = command_result.stdout.strip()
+
+        new_tag = f"v{release_version}"
+        command = f"git tag -a {new_tag} -m '{new_tag} {short_hash}'"
+        if is_dry_run:
+            print(f"dry-run, skipping command: {command}")
+        else:
+            command_result = self.run_command(command, shell=True, text=True, capture_output=False)
+
             if command_result.returncode != 0:
                 print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
                 exit(1)
 
-            command = f"git push origin $(git describe)"
+        command = f"git push origin {new_tag}"
+        if is_dry_run:
+            print(f"dry-run, skipping command: {command}")
+        else:
             command_result = self.run_command(command, shell=True, text=True,
                                               capture_output=False)
             if command_result.returncode != 0:
