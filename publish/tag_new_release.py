@@ -25,8 +25,8 @@ def main():
         parser = ArgumentParser()
         parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
                             help='a directory which is a clone of chisel-release default is "."', default=".")
-        parser.add_argument('-m', '--major-version', dest='major_version', action='store',
-                            help='major number of release being bumped', default="")
+        parser.add_argument('-rv', '--release-version', dest='release_version', action='store',
+                            help='full release number Z.Y.X eg. 3.4.2', required=True)
         parser.add_argument('-d', '--dry-run', dest='is_dry_run', action='store_true',
                             help='if set just shows command that will be called')
 
@@ -35,15 +35,15 @@ def main():
         args = parser.parse_args()
 
         release_dir = args.release_dir
-        release_version = f"{args.major_version}-release"
+        release_version = args.release_version
         start_step = args.start_step
         stop_step = args.stop_step
         list_only = args.list_only
         is_dry_run = args.is_dry_run
         counter = StepCounter()
 
-        if release_dir == "" or release_version == "":
-            print(f"Error: both --repo and --release must be specified to run this script")
+        if release_dir == "" or args.release_version == "":
+            print(f"Error: both --repo and --release-version must be specified to run this script")
             usage()
             exit(1)
         else:
