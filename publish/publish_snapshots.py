@@ -14,24 +14,17 @@ def main():
 
     try:
         parser = ArgumentParser()
-        parser.add_argument('-r', '--release', dest='release_dir', action='store',
-                            help='a directory which is a clone of chisel-release', required=True)
+        parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
+                            help='a directory which is a clone of chisel-release', default=".")
         parser.add_argument('-m', '--major-version', dest='major_version', action='store',
                             help='major number of snapshots being published', required=True)
         parser.add_argument('-d', '--dated-snapshot', dest='is_dated_snapshot', action='store_true',
-                            help='add datestamp to snapshots',
+                            help="add today's date asdatestamp to snapshots",
                             default=False)
         parser.add_argument('-o', '--override-date', dest='date_stamp', action='store',
                             help='overrides the date used for dated snapshots, format YYYYMMDD',
                             default=current_date)
-        parser.add_argument('-b', '--start-step', dest='start_step', type=int, action='store',
-                            help='command step to start on',
-                            default=1)
-        parser.add_argument('-e', '--stop-step', dest='stop_step', type=int, action='store',
-                            help='command step to end on',
-                            default=10000)
-        parser.add_argument('-l', '--list-only', dest='list_only', action='store_true',
-                            help='list command step, do not execute', default=False)
+        Tools.add_standard_cli_arguments(parser)
 
         args = parser.parse_args()
 

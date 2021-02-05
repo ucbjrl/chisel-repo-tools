@@ -6,23 +6,27 @@ The pages here are taken from the release document authored by Jim Lawson. This 
 herein. The scripts are the final ground truth over the current process and differences found should cause these pages
 to be updated.
 
+---
+
+## How To:
+
+### [Publish a SNAPSHOT release](publish_snapshots.md)
+
+### [Publish a minor release](publish_minor_release.md)
+
+### [Publish a major release](publish_major_release.md)
+
+### [Generating a Mergify File](generate_mergify.md)
+
+---
+
 ## Overview
-
-### How To Publish
-
-#### [Publish a SNAPSHOT release](publish_snapshots.md)
-
-#### [Publish a minor release](publish_minor_release.md)
-
-#### [Publish a major release](publish_major_release.md)
 
 ### [Release Basics](release_basics.md)
 
 ### [Release Process Details](release_process_details.md)
 
 ### [Generating Change Logs](generate_changelog.md)
-
-### [Generating a Mergify File](generate_mergify.md)
 
 ## Setup and General information
 

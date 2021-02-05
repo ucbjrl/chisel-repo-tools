@@ -59,7 +59,7 @@ def main():
         tools.run_submodule_update_recursive(counter.next_step())
         tools.run_make_pull(counter.next_step())
         tools.git_add_dash_u(counter.next_step())
-        tools.git_commit(counter.next_step(), "Bump .x branches")
+        tools.git_commit(counter.next_step(), "Bump master branches")
         tools.git_push(counter.next_step())
 
         #
@@ -71,7 +71,7 @@ def main():
         tools.run_make_pull(counter.next_step())
         tools.git_merge_masters_into_dot_x(counter.next_step())
         tools.git_add_dash_u(counter.next_step())
-        tools.git_commit(counter.next_step(), "Bump .x branches")
+        tools.git_commit(counter.next_step(), "Bump .x branches that just had masters merged into them")
         tools.git_push(counter.next_step())
 
     except Exception as e:

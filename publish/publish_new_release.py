@@ -15,7 +15,8 @@ def main():
                             help='a directory which is a clone of chisel-release default is "."', default=".")
         parser.add_argument('-m', '--major-version', dest='major_version', action='store',
                             help='major number of release being bumped', required=True)
-        parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store', choices=['major', 'minor'],
+        parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store',
+                            choices=['major', 'minor', 'rc<n>', 'rc=clear', 'ds', 'ds<YYYYMMDD', 'ds-clear'],
                             help='Is this a major or a minor release',
                             required=True)
         Tools.add_standard_cli_arguments(parser)
