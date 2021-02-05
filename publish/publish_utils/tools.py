@@ -236,6 +236,13 @@ class Tools:
             print("You appear to be in the wrong directory")
             print(f"{os.getcwd()} does not appear to be a git repo")
             exit(1)
+        remote = command_result.stdout.splitlines(keepends=False)[0]
+        remote = remote if not remote.endswith(" (fetch)") else remote[:-8]
+        remote = remote if not remote.endswith(" (push)") else remote[:-7]
+        if not (remote.endswith("/chisel-release") or remote.endswith("chisel-release.git")):
+            print(f"release dir must be clone of https://github.com/ucb-bar/chisel-release")
+            print(f"attempted remote is clone of {remote}")
+            exit(1)
 
     @command_step
     def checkout_branch(self, step_number, branch_name: str) -> None:
@@ -548,18 +555,19 @@ class Tools:
         if os.path.exists("changelog.txt"):
             os.remove("changelog.txt")
 
-        command = """
-            git submodule foreach '
-                if [ $name != "chisel-template" -a $name != "chisel-tutorial" ]; then
-                    branch=$(sh ../major-version-from-branch.sh) &&
-                    tags=($(git tag -l --sort=v:refname |
-                    grep -v SNAPSHOT | tail -n 2));
-                    echo $name ${tags[1]};
-                    echo $name ${tags[1]} >> ../changelog.txt;
-                    python $PYTHONPATH/gitlog2releasenotes/gitlog2releasenotes.py -b git-$name releaseNotes.${tags[1]} >> ../changelog.txt
-                fi
-            '
-        """
+        command = ""
+
+        command += f""" git submodule foreach '\n"""
+        command += f"""     if [ $name != "chisel-template" -a $name != "chisel-tutorial" ]; then\n"""
+        command += f"""         branch=$(sh ../major-version-from-branch.sh) &&\n"""
+        command += f"""         tags=($(git tag -l --sort=v:refname |\n"""
+        command += f"""         grep -v SNAPSHOT | tail -n 2));\n"""
+        command += """         echo $name ${tags[1]};\n"""
+        command += """         echo $name ${tags[1]} >> ../changelog.txt;\n"""
+        command += f"""         python {self.execution_dir}/../../src/gitlog2releasenotes/gitlog2releasenotes.py """
+        command += """                  -b git-$name releaseNotes.${tags[1]} >> ../changelog.txt\n"""
+        command += f"""     fi\n"""
+        command += f""" '\n"""
 
         command_result = self.run_command(f"{command}", shell=True, capture_output=False)
 

@@ -14,26 +14,19 @@ def main():
 
     try:
         parser = ArgumentParser()
-        parser.add_argument('-r', '--release', dest='release_dir', action='store',
-                            help='a directory which is a clone of chisel-release', required=True)
+        parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
+                            help='a directory which is a clone of chisel-release, default is "."', default=".")
         parser.add_argument('-m', '--major-version', dest='major_version', action='store',
                             help='major number of snapshots being published', required=True)
         parser.add_argument('-d', '--date-range', dest='date_range', action='store',
-                            help='set dates to search for PRs, e.g. ">2021-04-01" or "2021-05-01..2021-05-31',
+                            help='set dates to search for PRs, e.g. ">2021-04-01" or "2021-05-31..2021-05-01',
                             default=current_date)
         parser.add_argument('-c', '--clear-db', dest='clear_db', action='store_true',
                             help='clears issues collection from each repo database before downloading', default=False)
         parser.add_argument('-g', '--github-token', dest='github_token', action='store',
                             help='Way to set your github token, will use env var GHRPAT if not set by this',
                             default="")
-        parser.add_argument('-b', '--start-step', dest='start_step', type=int, action='store',
-                            help='command step to start on',
-                            default=1)
-        parser.add_argument('-e', '--stop-step', dest='stop_step', type=int, action='store',
-                            help='command step to end on',
-                            default=10000)
-        parser.add_argument('-l', '--list-only', dest='list_only', action='store_true',
-                            help='list command step, do not execute', default=False)
+        Tools.add_standard_cli_arguments(parser)
 
         args = parser.parse_args()
 

@@ -1,4 +1,3 @@
-
 class StepCounter:
     def __init__(self):
         self.step_counter = 0

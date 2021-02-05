@@ -26,8 +26,9 @@ snapshots.
 
 ```
 chisel-repo-tools chick$ python publish/publish_snapshots.py --help
-usage: publish_snapshots.py [-h] -r RELEASE_DIR -m MAJOR_VERSION [-d] [-o DATE_STAMP] [-b START_STEP]
-                            [-e STOP_STEP] [-l]
+usage: publish_snapshots.py [-h] -r RELEASE_DIR -m MAJOR_VERSION [-d]
+                            [-o DATE_STAMP] [-b START_STEP] [-e STOP_STEP]
+                            [-l]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -37,12 +38,14 @@ optional arguments:
                         major number of snapshots being published
   -d, --dated-snapshot  add datestamp to snapshots
   -o DATE_STAMP, --override-date DATE_STAMP
-                        overrides the date used for dated snapshots, format YYYYMMDD
+                        overrides the date used for dated snapshots, format
+                        YYYYMMDD
   -b START_STEP, --start-step START_STEP
                         command step to start on
   -e STOP_STEP, --stop-step STOP_STEP
                         command step to end on
   -l, --list-only       list command step, do not execute
+
 
 ```
 
