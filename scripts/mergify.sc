@@ -45,7 +45,7 @@ def mergeToMaster(conditions: List[String]) = Json.obj(
 val labelMergifyBackport = Json.obj(
   "name" -> "label Mergify backport PR".asJson,
   "conditions" -> List(
-    """body~=This is an automated backport of pull request \#\d+ done by Mergify"""
+    """title~=\(bp \#\d+\)"""
   ).asJson,
   "actions" -> Json.obj(
     "label" -> Json.obj(
