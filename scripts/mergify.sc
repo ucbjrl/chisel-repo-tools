@@ -42,18 +42,6 @@ def mergeToMaster(conditions: List[String]) = Json.obj(
   "actions" -> mergeAction
 )
 
-val labelMergifyBackport = Json.obj(
-  "name" -> "label Mergify backport PR".asJson,
-  "conditions" -> List(
-    """title~=\(bp \#\d+\)"""
-  ).asJson,
-  "actions" -> Json.obj(
-    "label" -> Json.obj(
-      "add" -> List("Backport").asJson
-    )
-  )
-)
-
 def makeBackportRule(branches: List[String]): Json = {
   Json.obj(
     "name" -> s"""backport to ${branches.mkString(", ")}""".asJson,
@@ -61,6 +49,7 @@ def makeBackportRule(branches: List[String]): Json = {
     "actions" -> Json.obj(
       "backport" -> Json.obj(
         "branches" -> branches.asJson,
+        "labels" -> List("Backport").asJson,
         "ignore_conflicts" -> true.asJson,
         "label_conflicts" -> "bp-conflict".asJson
       ),
@@ -113,7 +102,6 @@ def main(template: os.Path) = {
     "pull_request_rules" -> Json.fromValues(
       mergeToMaster(conditions) ::
       branchSets.map(makeBackportRule) :::
-      labelMergifyBackport ::
       branches.map(backportMergeRule(conditions))
     )
   )
