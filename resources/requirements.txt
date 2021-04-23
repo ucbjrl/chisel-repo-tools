@@ -14,7 +14,7 @@ PyGithub==1.53
 pygithub3==0.5.1
 PyJWT==1.7.1
 python-dateutil==2.8.1
-PyYAML==5.3.1
+PyYAML==5.4.1
 requests==2.24.0
 six==1.15.0
 smmap==3.0.4
