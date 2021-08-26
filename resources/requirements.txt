@@ -9,9 +9,7 @@ GitPython==3.1.11
 idna==2.10
 jwcrypto==0.8
 pycparser==2.20
-pygit==0.1
 PyGithub==1.53
-pygithub3==0.5.1
 PyJWT==1.7.1
 python-dateutil==2.8.1
 PyYAML==5.4.1
