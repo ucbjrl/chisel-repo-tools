@@ -6,6 +6,8 @@ from os.path import expandvars
 import sys
 from argparse import ArgumentParser
 import subprocess
+import shutil
+from pathlib import Path
 
 def gitConfigGet(value):
     cmd = ["git", "config", "--get", value]
@@ -40,6 +42,27 @@ def platformSpecific(key):
 def sshAgent():
     return platformSpecific("sshagent")
 
+
+def prettifyCommand(cmd):
+    def escape(l):
+        return l.replace("\"", "\\\"")
+    def quote(l):
+        if " " in l or "\"" in l :
+            return "\"" + escape(l) + "\""
+        else:
+            return l
+    quoted = [quote(x) for x in cmd]
+    return " ".join(quoted)
+
+
+def flatten(l):
+    return [item for sublist in l for item in sublist]
+
+
+def formatValues(d):
+    return { k: v.format(**d) for k, v in d.items() }
+
+
 def makeParser():
     # TODO expose and propagate options from 'publish_new_release.py'
     parser = ArgumentParser()
@@ -67,16 +90,20 @@ def main():
 
     # Step 2 - Run release
     # TODO figure out how to have the Docker container stick around if it fails or go away if it passes
-    environment = {
-        "PYTHONPATH": "/work/chisel-repo-tools",
-        "VERSIONING": "$PYTHONPATH/versioning/versioning.py"
-    }
+
+    environment = formatValues({
+        "PYTHONPATH": "/work/chisel-repo-tools/src",
+        "VERSIONING": "{PYTHONPATH}/versioning/versioning.py",
+    })
     lines = [
         f"git config --global user.email {args.email}",
         f"git config --global user.name {args.name}",
         f"git config -l",
         "hostname",
-        f"git clone git@github.com:chipsalliance/treadle.git"
+        f"git clone git@github.com:ucb-bar/chisel-release.git",
+        f"cd chisel-release",
+        f"python3 ../publish/publish_new_release.py -m 3.4 -bt minor"
+
     ]
     joined = "; ".join(lines)
     script = f"bash -c '{joined}'"
@@ -85,7 +112,9 @@ def main():
     ssh_agent = ["-v", f"{args.ssh_agent}:/ssh-agent", "-e", "SSH_AUTH_SOCK=/ssh-agent"]
     # Known hosts mapping
     known_hosts = ["-v", f"{host_home}/.ssh/known_hosts:{container_home}/.ssh/known_hosts"]
-    cmd =  base_cmd + ssh_agent + known_hosts + [ "chiselrelease:latest", "bash", "-c", joined]
+    env = flatten([["-e", f"{name}={value}"] for name, value in environment.items()])
+    cmd =  base_cmd + env + ssh_agent + known_hosts + [ "chiselrelease:latest", "bash", "-c", joined]
+    print(prettifyCommand(cmd))
     proc1 = subprocess.run(["echo", "$PATH"], shell=True)
     print(proc1)
     print(cmd)
