@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
 """Example use: ./publish/publish_new_release_in_docker.py -- -m 3.4 -bt minor"""
+# Useful commands
+# # Build the docker file
+# > docker build -f resources/Dockerfile -t chiselrelease:latest .
+#
+# # Connect to a running container
+# > docker exec -it <container> bash
+#
+# # Stop a container
+# > docker stop <container>
+#
+# # Delete all stopped containers
+# > docker container prune
 
 import os
 from os.path import expandvars
