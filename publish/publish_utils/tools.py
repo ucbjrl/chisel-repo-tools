@@ -166,7 +166,7 @@ class Tools:
                 ", rc-clear, ds, ds<YYYMMDD>, ds-clear")
             exit(1)
 
-        return f"python {right_python_path}/{versioning_script} {args}"
+        return f"python3 {right_python_path}/{versioning_script} {args}"
 
     def run_command(self, *args, **kwargs):
         """wrapper that writes command itself and it's output to the log file, appending to existing file if there"""
@@ -493,7 +493,7 @@ class Tools:
         command = f"""
         git submodule foreach '
           cd .. &&
-          python $PYTHONPATH/repoissues2db/repoissues2db.py -r $name -s {date_stamp} {clear_db_flag}
+          python3 $PYTHONPATH/repoissues2db/repoissues2db.py -r $name -s {date_stamp} {clear_db_flag}
         '
         """
 
@@ -564,7 +564,7 @@ class Tools:
         command += f"""         grep -v SNAPSHOT | tail -n 2));\n"""
         command += """         echo $name ${tags[1]};\n"""
         command += """         echo $name ${tags[1]} >> ../changelog.txt;\n"""
-        command += f"""         python {self.execution_dir}/../../src/gitlog2releasenotes/gitlog2releasenotes.py """
+        command += f"""         python3 {self.execution_dir}/../../src/gitlog2releasenotes/gitlog2releasenotes.py """
         command += """                  -b git-$name releaseNotes.${tags[1]} >> ../changelog.txt\n"""
         command += f"""     fi\n"""
         command += f""" '\n"""
