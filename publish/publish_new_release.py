@@ -8,19 +8,24 @@ from publish_utils.tools import Tools
 from publish_utils.step_counter import StepCounter
 
 
+def make_parser():
+    parser = ArgumentParser()
+    parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
+            help='a directory which is a clone of chisel-release default is "."', default=".")
+    parser.add_argument('-m', '--major-version', dest='major_version', action='store',
+            help='major number of release being bumped', required=True)
+    parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store',
+            choices=['major', 'minor', 'rc<n>', 'rc=clear', 'ds', 'ds<YYYYMMDD', 'ds-clear'],
+            help='Is this a major or a minor release',
+            required=True)
+    Tools.add_standard_cli_arguments(parser)
+
+    return parser
+
+
 def main():
     try:
-        parser = ArgumentParser()
-        parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
-                            help='a directory which is a clone of chisel-release default is "."', default=".")
-        parser.add_argument('-m', '--major-version', dest='major_version', action='store',
-                            help='major number of release being bumped', required=True)
-        parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store',
-                            choices=['major', 'minor', 'rc<n>', 'rc=clear', 'ds', 'ds<YYYYMMDD', 'ds-clear'],
-                            help='Is this a major or a minor release',
-                            required=True)
-        Tools.add_standard_cli_arguments(parser)
-
+        parser = make_parser()
         args = parser.parse_args()
 
         release_dir = args.release_dir

@@ -33,3 +33,5 @@ WORKDIR /work/chisel-repo-tools/
 
 RUN pip3 install -r resources/requirements.txt
 
+WORKDIR /work
+
