@@ -122,17 +122,14 @@ def launch_container(args, image_name):
     return proc.stdout.decode().strip()
 
 
-def run_commands(args, container, environment, lines):
-    all_lines = [
-        f"git config --global user.email {args.email}",
-        f"git config --global user.name {args.name}",
-    ] + lines
-    joined = "; ".join(all_lines)
+def run_commands(container, environment, lines):
+    joined = "; ".join(lines)
     script = f"bash -c '{joined}'"
     base_cmd = ["docker", "exec"]
     env = flatten([["-e", f"{name}={value}"] for name, value in environment.items()])
     cmd = base_cmd + env + [container] + ["bash", "-c", joined]
-    print(prettifyCommand(cmd))
+    print(f"Running '{prettifyCommand(cmd)}'")
+
     proc = subprocess.run(cmd)
 
 
@@ -165,8 +162,13 @@ def main():
     if container is None:
         print("No container running, starting...")
         container = launch_container(args, image_name)
-        cmd = ["git clone git@github.com:ucb-bar/chisel-release.git"]
-        run_commands(args, container, environment, cmd)
+        # Some setup commands
+        cmds = [
+            "git clone git@github.com:ucb-bar/chisel-release.git",
+            f"git config --global user.email {args.email}",
+            f"git config --global user.name {args.name}",
+        ]
+        run_commands(container, environment, cmds)
 
     print(f"Running in container {container}")
 
@@ -178,10 +180,10 @@ def main():
 
     lines = [
         "cd chisel-release",
-        f"python3 ../chisel-repo-tools/publish/publish_new_release.py {splat_args}"
+        f"python3 -u ../chisel-repo-tools/publish/publish_new_release.py {splat_args}"
     ]
 
-    run_commands(args, container, environment, lines)
+    run_commands(container, environment, lines)
 
 
 if __name__ == "__main__":
