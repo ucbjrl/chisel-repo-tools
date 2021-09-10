@@ -84,14 +84,14 @@ def makeParser():
     parser.add_argument("-n", "--name", action="store", default=gitConfigGet("user.name"),
                         help="Git config user.name, defaults to 'git config --get user.name'")
     parser.add_argument("--ssh-agent", action="store", default=sshAgent(),
-                        help=f"Git config user.name, defaults to '{sshAgent()}'")
+                        help=f"Local SSH agent to mount in container, defaults to '{sshAgent()}'")
     parser.add_argument("args", type=str, nargs="+",
                         help="Arguments for publish_new_release.py that will be run in Docker container")
     return parser
 
 
 def find_container(image_name):
-    cmd = ["docker", "ps", "--filter", f"ancestor={image_name}", "-q"]
+    cmd = ["docker", "ps", "--filter", f"ancestor={image_name}", "--format", "{{.Names}}"]
     proc = subprocess.run(cmd, capture_output=True)
     lines = proc.stdout.decode().strip().split("\n")
 
@@ -117,6 +117,7 @@ def launch_container(args, image_name):
     base_cmd = ["docker", "run", "-t", "-d"]
     cmd =  base_cmd + ssh_agent + known_hosts + [image_name]
 
+    print(f"Running '{prettifyCommand(cmd)}'")
     proc = subprocess.run(cmd, capture_output=True)
 
     return proc.stdout.decode().strip()
@@ -161,7 +162,9 @@ def main():
 
     if container is None:
         print("No container running, starting...")
-        container = launch_container(args, image_name)
+        launch_container(args, image_name)
+        # Launch container does return the id, but find_container gives the prettier name
+        container = find_container(image_name)
         # Some setup commands
         cmds = [
             "git clone git@github.com:ucb-bar/chisel-release.git",
