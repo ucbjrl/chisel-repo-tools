@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Example use: ./publish/publish_new_release_in_docker.py -- -m 3.4 -bt minor"""
+
 # Useful commands
 # # Build the docker file
 # > docker build -f resources/Dockerfile -t chiselrelease:latest .
@@ -137,7 +139,6 @@ def run_commands(container, environment, lines):
 def main():
     parser = makeParser()
     args = parser.parse_args()
-    print(args)
 
     # Check forwarded args
     forwarded_args = args.args

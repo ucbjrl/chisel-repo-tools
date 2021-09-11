@@ -468,7 +468,7 @@ class Tools:
         """verify merge"""
 
         command = Tools.get_versioning_command("verify")
-        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, capture_output=False)
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
