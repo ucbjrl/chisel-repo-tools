@@ -380,7 +380,7 @@ class Tools:
         """run make clean install"""
 
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} clean install",
+            f"make -j1 -f {self.default_makefile} clean install",
             shell=True,
             capture_output=False)
 
