@@ -379,28 +379,32 @@ class Tools:
     def run_make_clean_install(self, step_number):
         """run make clean install"""
 
+        # FIXME make clean is not threadsafe, must use -j1 until that is fixed
+        command = f"make -j1 -f {self.default_makefile} clean install"
         command_result = self.run_command(
-            f"make -j1 -f {self.default_makefile} clean install",
+            command,
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j4 -f {self.default_makefile} clean install failed ({command_result.returncode}), see {self.log_name} for details")
+                f"{command} failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
     @command_step
     def run_make_clean(self, step_number):
         """run make clean"""
 
+        # FIXME make clean is not threadsafe, must use -j1 until that is fixed
+        command = f"make -j1 -f {self.default_makefile} clean"
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} clean",
+            command,
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j4 -f {self.default_makefile} clean failed ({command_result.returncode}), see {self.log_name} for details")
+                f"{command} failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
     @command_step
