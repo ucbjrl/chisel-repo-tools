@@ -454,13 +454,14 @@ class Tools:
         is_external_program_present(f"yosys -V")
         is_external_program_present(f"z3 --version")
 
+        command = f"make -j4 -f {self.default_makefile} test"
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} test",
+            command,
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j4 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
+            print(f"{command} failed, see {self.log_name} for details")
             show_errors()
             exit(1)
 
