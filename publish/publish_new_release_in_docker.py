@@ -4,7 +4,7 @@
 
 # Useful commands
 # # Build the docker file
-# > docker build -f resources/Dockerfile -t chiselrelease:latest .
+# > docker build -f resources/Dockerfile -t ucbbar/chisel-release:latest .
 #
 # # Connect to a running container
 # > docker exec -it <container> bash
@@ -145,12 +145,12 @@ def main():
     pnr_parser = pnr.make_parser()
     pnr_parser.parse_args(forwarded_args)
 
-    image_name = "chiselrelease:latest"
+    image_name = "ucbbar/chisel-release:latest"
 
     # Step 1 - Build Docker Image
     # TODO actually do this
     # Run from root of the repo
-    # docker build -f resources/Dockerfile -t chiselrelease:latest .
+    # docker build -f resources/Dockerfile -t ucbbar/chisel-release:latest .
 
     # Environment needed to run publish commands
     environment = formatValues({
