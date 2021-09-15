@@ -25,6 +25,8 @@ RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/ap
 RUN apt-get update && apt-get install -y \
   sbt
 
+COPY resources/publish_plugins.sbt /root/.sbt/1.0/plugins/publish.sbt
+
 WORKDIR /work
 
 COPY . chisel-repo-tools/

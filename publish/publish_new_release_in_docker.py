@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 """Example use: ./publish/publish_new_release_in_docker.py -- -m 3.4 -bt minor"""
+# Notes
+# * This requires the ability to run docker WITHOUT sudo. This seems to be the
+#   default on MacOS but required additional steps on Ubuntu.
+#   See https://docs.docker.com/engine/install/linux-postinstall/
+# * This also has only been tested when using keychain to manage the ssh agent
+#   (on both MacOS and Ubuntu)
 
 # Useful commands
 # # Build the docker file
@@ -23,6 +29,8 @@ import subprocess
 import shutil
 from pathlib import Path
 import publish_new_release as pnr
+import re
+
 
 def gitConfigGet(value):
     cmd = ["git", "config", "--get", value]
@@ -48,7 +56,7 @@ def platformSpecific(key):
             "sshagent": "/run/host-services/ssh-auth.sock"
         },
         "linux": {
-            "sshagent": "$SSH_AUTH_SOCK" # TODO may need to do env lookup
+            "sshagent": os.environ["SSH_AUTH_SOCK"]
         }
     }
     return lookup[platform()][key]
@@ -76,6 +84,22 @@ def flatten(l):
 
 def formatValues(d):
     return { k: v.format(**d) for k, v in d.items() }
+
+
+def subenvars(cmd):
+    def subvar(arg):
+        # Find $VARIABLE not preceded by \
+        m = re.match(r'.*(?<!\\)\$(\w+).*', arg)
+        if m:
+            var = m.group(1)
+            resolved = os.environ.get(var)
+            if resolved is None:
+                raise Exception(f"Environment variable '{var}' must be defined!")
+            subbed = re.sub(f"\${var}", resolved, arg)
+            return subbed
+        else:
+            return arg
+    return [subvar(arg) for arg in cmd]
 
 
 def makeParser():
@@ -130,10 +154,14 @@ def run_commands(container, environment, lines):
     script = f"bash -c '{joined}'"
     base_cmd = ["docker", "exec"]
     env = flatten([["-e", f"{name}={value}"] for name, value in environment.items()])
-    cmd = base_cmd + env + [container] + ["bash", "-c", joined]
-    print(f"Running '{prettifyCommand(cmd)}'")
 
-    proc = subprocess.run(cmd)
+    fake_cmd = base_cmd + env + [container, "bash", "-c", joined]
+    print(f"Running '{prettifyCommand(fake_cmd)}'")
+
+    # It's important to not print the subbed environment variables which have secrets
+    secret_cmd = base_cmd + subenvars(env) + [container, "bash", "-c", joined]
+
+    proc = subprocess.run(secret_cmd)
 
 
 def main():
@@ -147,16 +175,7 @@ def main():
 
     image_name = "ucbbar/chisel-release:latest"
 
-    # Step 1 - Build Docker Image
-    # TODO actually do this
-    # Run from root of the repo
-    # docker build -f resources/Dockerfile -t ucbbar/chisel-release:latest .
-
-    # Environment needed to run publish commands
-    environment = formatValues({
-        "PYTHONPATH": "/work/chisel-repo-tools/src",
-        "VERSIONING": "{PYTHONPATH}/versioning/versioning.py",
-    })
+    # Step 1 - Setup Docker container
 
     # Find or launch container
     container = find_container(image_name)
@@ -172,19 +191,30 @@ def main():
             f"git config --global user.email {args.email}",
             f"git config --global user.name {args.name}",
         ]
-        run_commands(container, environment, cmds)
+        run_commands(container, {}, cmds)
 
     print(f"Running in container {container}")
 
-
     # Step 2 - Run release
-    # TODO figure out how to have the Docker container stick around if it fails or go away if it passes
+
+    # Environment needed to run publish commands
+    # NOTE: Anything with an environment variable will be subbed in subprocess.run
+    #       but will NOT be echoed to the screen, this is mainly for secrets
+    environment = formatValues({
+        "PYTHONPATH": "/work/chisel-repo-tools/src",
+        "VERSIONING": "{PYTHONPATH}/versioning/versioning.py",
+        "PGP_SECRET": "$PGP_SECRET",
+        "PGP_PASSPHRASE": "$PGP_PASSPHRASE",
+        "SONATYPE_USERNAME": "$SONATYPE_USERNAME",
+        "SONATYPE_PASSWORD": "$SONATYPE_PASSWORD",
+    })
 
     splat_args = " ".join(forwarded_args)
 
     lines = [
         "cd chisel-release",
-        f"python3 -u ../chisel-repo-tools/publish/publish_new_release.py {splat_args}"
+        "echo $PGP_SECRET | base64 --decode | gpg --batch --import",
+        f"python3 -u ../chisel-repo-tools/publish/publish_new_release.py {splat_args}",
     ]
 
     run_commands(container, environment, lines)
