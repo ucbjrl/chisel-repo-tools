@@ -190,6 +190,8 @@ def main():
             "git clone git@github.com:ucb-bar/chisel-release.git",
             f"git config --global user.email {args.email}",
             f"git config --global user.name {args.name}",
+            # This is needed for pushing tags at the end of release during test_new_release.py
+            'git config --global url."git@github.com:".insteadOf "https://github.com/"',
         ]
         run_commands(container, {}, cmds)
 
@@ -218,6 +220,14 @@ def main():
     ]
 
     run_commands(container, environment, lines)
+
+    # Step 3 - Finalize Release on Sonatype
+    # See docs/sonatype_finalize_release.md
+    # TODO integrate into publish_new_release
+
+    # Step 4 - Tag Release
+    # Run publish/tag_new_release.py
+    # TODO integrate into publish_new_release
 
 
 if __name__ == "__main__":

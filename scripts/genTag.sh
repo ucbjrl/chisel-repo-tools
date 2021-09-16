@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
 script_dir=$(dirname $0)
 xbranch="master"
 if [[ $# -gt 0 ]]; then
