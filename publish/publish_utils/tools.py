@@ -5,7 +5,7 @@ import subprocess
 import re
 
 from datetime import datetime
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 
 
 def command_step(step_function):
@@ -119,18 +119,7 @@ class Tools:
                             help='just list command steps, do not execute', default=False)
 
     @staticmethod
-    def get_versioning_command(sub_command: str) -> str:
-        python_path = os.getenv("PYTHONPATH")
-        versioning_script = 'versioning/versioning.py'
-
-        right_python_path = ""
-        try:
-            right_python_path = next(
-                path for path in python_path.split(':') if os.path.exists(f"{path}/{versioning_script}"))
-        except StopIteration:
-            print(f"Unable to find a path to {versioning_script} in PYTHONPATH={python_path}")
-            exit(1)
-
+    def get_versioning_command_args(sub_command: str) -> str:
         args = ""
         if sub_command == "verify":
             args = "verify"
@@ -144,9 +133,8 @@ class Tools:
                 day_stamp = ds_result.group(1)
                 args = f'-s {day_stamp} write'
             else:
-                print("Error: could not find plausible 8 digit YYYYMMDD date after ds bump-type")
-                exit(1)
-        elif sub_command == "date-stamped-clear":
+                raise ArgumentTypeError("Error: could not find plausible 8 digit YYYYMMDD date after ds bump-type")
+        elif sub_command == "ds-clear":
             args = f'-s "" write'
         elif sub_command == "major":
             args = "bump-maj"
@@ -155,16 +143,48 @@ class Tools:
         elif sub_command == "rc-clear":
             args = '-r "" write'
         elif sub_command.startswith("rc"):
-            pattern = re.compile(r'rc(\d+)')
-            if not pattern.match(sub_command):
-                print("Error: bad bump-type, release candidate must be of the form RC<candidate-number>")
-                exit(1)
-            args = sub_command
+            m = re.match(r'rc(\d+)', sub_command)
+            if not m:
+                raise ArgumentTypeError("Error: bad bump-type, release candidate must be of the form rc<candidate-number>")
+            args = f"-r RC{m.group(1)} write"
         else:
-            print(
-                "Error: bad bump-type, release candidate must be of major, minor, rc<n>" +
-                ", rc-clear, ds, ds<YYYMMDD>, ds-clear")
+            raise ArgumentTypeError(
+                f"Error: bad bump-type '{sub_command}', it must be one of major, minor, rc<n>" +
+                 ", rc-clear, ds, ds<YYYYMMDD>, ds-clear")
+        return args
+
+    @staticmethod
+    def get_versioning_command(sub_command: str) -> str:
+        python_path = os.getenv("PYTHONPATH")
+        versioning_script = 'versioning/versioning.py'
+
+        right_python_path = ""
+        try:
+            right_python_path = next(
+                path for path in python_path.split(':') if os.path.exists(f"{path}/{versioning_script}"))
+        except StopIteration:
+            print(f"Unable to find a path to {versioning_script} in PYTHONPATH={python_path}")
             exit(1)
+
+        args = Tools.get_versioning_command_args(sub_command)
+
+        return f"python3 {right_python_path}/{versioning_script} {args}"
+
+
+    @staticmethod
+    def get_versioning_command(sub_command: str) -> str:
+        python_path = os.getenv("PYTHONPATH")
+        versioning_script = 'versioning/versioning.py'
+
+        right_python_path = ""
+        try:
+            right_python_path = next(
+                path for path in python_path.split(':') if os.path.exists(f"{path}/{versioning_script}"))
+        except StopIteration:
+            print(f"Unable to find a path to {versioning_script} in PYTHONPATH={python_path}")
+            exit(1)
+
+        args = Tools.get_versioning_command_args(sub_command)
 
         return f"python3 {right_python_path}/{versioning_script} {args}"
 

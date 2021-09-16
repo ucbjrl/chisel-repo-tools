@@ -9,15 +9,20 @@ from publish_utils.step_counter import StepCounter
 
 
 def make_parser():
+    def validate_bump_type(arg):
+        # Just check if it parses but return original arg because it is used later
+        Tools.get_versioning_command_args(arg)
+        return arg
+
     parser = ArgumentParser()
     parser.add_argument('-r', '--release-dir', dest='release_dir', action='store',
             help='a directory which is a clone of chisel-release default is "."', default=".")
     parser.add_argument('-m', '--major-version', dest='major_version', action='store',
             help='major number of release being bumped', required=True)
     parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store',
-            choices=['major', 'minor', 'rc<n>', 'rc=clear', 'ds', 'ds<YYYYMMDD', 'ds-clear'],
-            help='Is this a major or a minor release',
-            required=True)
+            type=validate_bump_type, required=True,
+            help='Why type of release is this? '
+                 '[major, minor, rc<#>, rc-clear, ds, ds<YYYYMMDD>, ds-clear]')
     Tools.add_standard_cli_arguments(parser)
 
     return parser
@@ -40,10 +45,7 @@ def main():
         print(f"chisel-release directory is {os.getcwd()}")
         print(f"release specified is {release_dot_x_version}")
 
-        if not list_only:
-            # this will validate bump_tpe and exit on failure
-            Tools.get_versioning_command(bump_type)
-        else:
+        if list_only:
             print(f"These are the steps to be executed for the {sys.argv[0]} script")
 
         tools = Tools("publish_snapshots", release_dir)
