@@ -166,7 +166,7 @@ class Tools:
                 ", rc-clear, ds, ds<YYYMMDD>, ds-clear")
             exit(1)
 
-        return f"python {right_python_path}/{versioning_script} {args}"
+        return f"python3 {right_python_path}/{versioning_script} {args}"
 
     def run_command(self, *args, **kwargs):
         """wrapper that writes command itself and it's output to the log file, appending to existing file if there"""
@@ -379,28 +379,32 @@ class Tools:
     def run_make_clean_install(self, step_number):
         """run make clean install"""
 
+        # FIXME make clean is not threadsafe, must use -j1 until that is fixed
+        command = f"make -j1 -f {self.default_makefile} clean install"
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} clean install",
+            command,
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j4 -f {self.default_makefile} clean install failed ({command_result.returncode}), see {self.log_name} for details")
+                f"{command} failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
     @command_step
     def run_make_clean(self, step_number):
         """run make clean"""
 
+        # FIXME make clean is not threadsafe, must use -j1 until that is fixed
+        command = f"make -j1 -f {self.default_makefile} clean"
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} clean",
+            command,
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j4 -f {self.default_makefile} clean failed ({command_result.returncode}), see {self.log_name} for details")
+                f"{command} failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
     @command_step
@@ -450,13 +454,14 @@ class Tools:
         is_external_program_present(f"yosys -V")
         is_external_program_present(f"z3 --version")
 
+        command = f"make -j4 -f {self.default_makefile} test"
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} test",
+            command,
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
-            print(f"make -j4 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
+            print(f"{command} failed, see {self.log_name} for details")
             show_errors()
             exit(1)
 
@@ -468,7 +473,7 @@ class Tools:
         """verify merge"""
 
         command = Tools.get_versioning_command("verify")
-        command_result = self.run_command(f"{command} >& {self.log_name}", shell=True, capture_output=False)
+        command_result = self.run_command(f"{command}", shell=True, capture_output=False)
 
         if command_result.returncode != 0:
             print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
@@ -493,7 +498,7 @@ class Tools:
         command = f"""
         git submodule foreach '
           cd .. &&
-          python $PYTHONPATH/repoissues2db/repoissues2db.py -r $name -s {date_stamp} {clear_db_flag}
+          python3 $PYTHONPATH/repoissues2db/repoissues2db.py -r $name -s {date_stamp} {clear_db_flag}
         '
         """
 
@@ -564,7 +569,7 @@ class Tools:
         command += f"""         grep -v SNAPSHOT | tail -n 2));\n"""
         command += """         echo $name ${tags[1]};\n"""
         command += """         echo $name ${tags[1]} >> ../changelog.txt;\n"""
-        command += f"""         python {self.execution_dir}/../../src/gitlog2releasenotes/gitlog2releasenotes.py """
+        command += f"""         python3 {self.execution_dir}/../../src/gitlog2releasenotes/gitlog2releasenotes.py """
         command += """                  -b git-$name releaseNotes.${tags[1]} >> ../changelog.txt\n"""
         command += f"""     fi\n"""
         command += f""" '\n"""
@@ -685,7 +690,7 @@ class Tools:
              git submodule foreach '
                  rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
                  xbranch=$(echo $rbranch | sed -e "s/-release/.x/");
-                 {subcommand} git tag $(../genTag.sh $xbranch)
+                 {subcommand} git tag $(bash ../genTag.sh $xbranch)
              '
         """
 
