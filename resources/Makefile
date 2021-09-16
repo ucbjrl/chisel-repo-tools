@@ -4,6 +4,7 @@ SBT=sbt -Dsbt.ivy.home=$(IVY_DIR) -DROCKET_USE_MAVEN
 PYTHON ?= python3
 MKDIR ?= mkdir
 VERSIONING ?= versioning.py
+THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 
 default: install
 
@@ -163,7 +164,7 @@ stamps:
 VERSION_DEP=$(if $(shell test -f $(VERSIONING) && echo yes),$(VERSIONING))
 
 ifneq "$(VERSION_DEP)" ""
-deps.bare:	Makefile $(BUILD_SBTs) $(VERSION_DEP)
+deps.bare: $(THIS_MAKEFILE) $(BUILD_SBTs) $(VERSION_DEP)
 	date > stamps/$@.begin
 	$(PYTHON) $(VERSIONING) -o $@ dependency-array
 	date > stamps/$@.end
