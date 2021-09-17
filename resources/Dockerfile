@@ -5,8 +5,10 @@ FROM ubuntu:20.04
 # See https://askubuntu.com/questions/909277
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
   curl \
+  cvc4 \
   gawk \
   gnupg2 \
+  iverilog \
   openjdk-11-jdk \
   python3 \
   python3-pip \

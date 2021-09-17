@@ -5,6 +5,8 @@ PYTHON ?= python3
 MKDIR ?= mkdir
 VERSIONING ?= versioning.py
 THIS_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+THIS_DIR := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))
+LOOKUP := $(THIS_DIR)lookup_cmd.sh
 
 default: install
 
@@ -69,7 +71,7 @@ dep+publishLocal=$(if $(NEED_CLEAN),$1.sbt+clean)
 
 $1.sbt$2:	stamps $(dep$2)
 	date > stamps/$1.sbt$2.begin
-	cd $1 && $(SBT) $2
+	cd $1 && $(SBT) $(shell $(LOOKUP) $1 $2)
 	$(if $(findstring clean,$2),find $1 -depth -type d \( -name target -o -name test_run_dir \) -execdir rm -r {} \;)
 	date > stamps/$1.sbt$2.end
 endef
