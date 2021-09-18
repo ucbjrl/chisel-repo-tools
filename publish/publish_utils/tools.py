@@ -731,7 +731,7 @@ class Tools:
              git submodule foreach '
                  rbranch=$(git config -f $toplevel/.gitmodules submodule.$name.branch);
                  xbranch=$(echo $rbranch | sed -e "s/-release/.x/");
-                 {subcommand} git tag $(bash ../genTag.sh $xbranch)
+                 {subcommand} git tag $(bash $PYTHONPATH/../scripts/genTag.sh $xbranch)
              '
         """
 
