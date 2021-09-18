@@ -640,6 +640,27 @@ class Tools:
             exit(1)
 
     @command_step
+    def merge_tracked_branches_into_release_branches(self, step_number):
+        """merges commits from tracked branches (usually .x or master) into -release branches"""
+        """assumes the current branch in chisel-release a -release branch"""
+
+        command = f"""
+        sbranch=$(git branch --show-current)
+        export xbranch=$(echo $sbranch | sed 's/-release/.x/')
+        git submodule foreach '
+            if [ "$name" != "rocket-chip" ] && git diff --quiet --cached ; then
+                tracked_branch=$(git -C .. config --blob $xbranch:.gitmodules submodule.$name.branch)
+                git merge --no-ff --no-commit $tracked_branch
+            fi'
+        """
+
+        command_result = self.run_command(command, shell=True, text=True, capture_output=False)
+
+        if command_result.returncode != 0:
+            print(f"{command} failed with error {command_result.returncode}, see {self.log_name} for details")
+            exit(1)
+
+    @command_step
     def check_dot_x_merge_status(self, step_number):
         """look for any obvious error from merge_dot_x_branches_into_release_branches step"""
         command = f"git status -b uno --ignore-submodules=untracked"

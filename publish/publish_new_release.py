@@ -48,7 +48,7 @@ def main():
         if list_only:
             print(f"These are the steps to be executed for the {sys.argv[0]} script")
 
-        tools = Tools("publish_snapshots", release_dir)
+        tools = Tools("publish_new_release", release_dir)
 
         tools.set_start_step(start_step)
         tools.set_stop_step(stop_step)
@@ -87,8 +87,8 @@ def main():
         tools.git_commit(counter.next_step(), "Bump new -release versions")
 
         #
-        # Merge .x branches in to -release branches
-        tools.merge_dot_x_branches_into_release_branches(counter.next_step())
+        # Merge tracked branches (usually master or .x) in to -release branches
+        tools.merge_tracked_branches_into_release_branches(counter.next_step())
         tools.verify_merge(counter.next_step())
 
         #
