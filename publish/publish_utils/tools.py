@@ -650,7 +650,7 @@ class Tools:
         git submodule foreach '
             if [ "$name" != "rocket-chip" ] && git diff --quiet --cached ; then
                 tracked_branch=$(git -C .. config --blob $xbranch:.gitmodules submodule.$name.branch)
-                git merge --no-ff --no-commit $tracked_branch
+                git merge --no-ff --no-commit -Xours $tracked_branch
             fi'
         """
 
