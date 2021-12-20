@@ -5,16 +5,25 @@ FROM ubuntu:20.04
 # See https://askubuntu.com/questions/909277
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
   curl \
+  cvc4 \
   gawk \
   gnupg2 \
   openjdk-11-jdk \
   python3 \
   python3-pip \
   python3-venv \
-  verilator \
+  tar \
   vim \
-  yosys \
-  z3
+  wget
+
+WORKDIR /opt
+
+# Get oss-cad-suite for newer verilator
+RUN wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2021-12-18/oss-cad-suite-linux-x64-20211218.tgz
+
+RUN tar zxvf oss-cad-suite-linux-x64-20211218.tgz
+
+ENV PATH="/opt/oss-cad-suite/bin:$PATH"
 
 # Add SBT repo
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list && \
