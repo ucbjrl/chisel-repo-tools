@@ -21,11 +21,16 @@ import io.circe.syntax._ // for .asJson
 import io.circe.yaml.parser
 import io.circe.yaml.syntax._ // for .asYaml
 
-val mergeAction = Json.obj(
-  "merge" -> Json.obj(
+def mergeQueue(conditions: List[String]) = Json.obj(
+  "name" -> "default".asJson,
+  "conditions" -> conditions.asJson
+)
+
+val queueAction = Json.obj(
+  "queue" -> Json.obj(
+    "name" -> "default".asJson,
     "method" -> "squash".asJson,
-    "strict" -> "smart".asJson,
-    "strict_method" -> "merge".asJson
+    "update_method" -> "merge".asJson
   )
 )
 
@@ -39,7 +44,7 @@ def mergeToMaster(conditions: List[String]) = Json.obj(
     "label!=\"DO NOT MERGE\"",
     "label!=\"bp-conflict\""
   )).asJson,
-  "actions" -> mergeAction
+  "actions" -> queueAction
 )
 
 def makeBackportRule(branches: List[String]): Json = {
@@ -69,7 +74,7 @@ def backportMergeRule(conditions: List[String])(branch: String): Json = Json.obj
     "label!=\"DO NOT MERGE\"",
     "label!=\"bp-conflict\""
   )).asJson,
-  "actions" -> mergeAction
+  "actions" -> queueAction
 )
 
 
@@ -99,6 +104,10 @@ def main(template: os.Path) = {
   val branchSets = branches.scanRight(List.empty[String])(_ :: _).init.reverse
 
   val config = Json.obj(
+    "queue_rules" -> Json.fromValues(
+      mergeQueue(conditions) ::
+      Nil
+    ),
     "pull_request_rules" -> Json.fromValues(
       mergeToMaster(conditions) ::
       branchSets.map(makeBackportRule) :::
