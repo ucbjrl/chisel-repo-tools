@@ -26,7 +26,7 @@ from argparse import RawDescriptionHelpFormatter
 __all__ = []
 __version__ = 0.1
 __date__ = '2019-10-08'
-__updated__ = '2019-10-08'
+__updated__ = '2022-01-11'
 
 DEBUG = 1
 TESTRUN = 0
@@ -57,11 +57,14 @@ class CNVersion:
 
     def bumpMajor(self) -> 'CNVersion':
         someInts = list(self.theInts)
-        someInts[1] += 1
+        # If previous version is a release candidate (common case), we're just removing the RC#
+        if self.releaseQualifier is None:
+            someInts[1] += 1
         # If this is a SNAPSHOT version, don't touch the existing minor version (None).
         if someInts[2] is not None:
             someInts[2] = 0
-        return CNVersion(aVersion=self, theInts=someInts)
+        # Do not pass aVersion because major version should have qualifiers cleared
+        return CNVersion(theInts=someInts)
 
     def bumpMinor(self) -> 'CNVersion':
         someInts = list(self.theInts)
