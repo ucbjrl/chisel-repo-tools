@@ -25,7 +25,7 @@ default: install
 # For the first approach, we need to execute sbt commands in a specific
 # directory order and possibly do a publishLocal at the end so the results
 # are available to later submodules.
-EXPLICIT_SUBMODULES=firrtl firrtl-interpreter treadle chisel3 chisel-testers2 chisel-testers diagrammer dsptools
+EXPLICIT_SUBMODULES=firrtl firrtl-interpreter treadle chisel3 chiseltest chisel-testers diagrammer dsptools
 
 # The following targets need a publishLocal so their results are available.
 NEED_PUBLISHING = compile test +compile +test
@@ -156,7 +156,7 @@ test check:	test_projects $(NEED_INSTALL)
 # them.
 .PHONY: check clean clean_projects $(CLEAN_PROJECTS) clean_caches clean_artifacts compile coverage pull install install_projects $(INSTALL_PROJECTS) require_clean_work_tree test test_projects $(TEST_PROJECTS)
 
-BUILD_SBTs=chisel-testers/build.sbt chisel-testers2/build.sbt chisel3/build.sbt diagrammer/build.sbt dsptools/build.sbt firrtl/build.sbt firrtl-interpreter/build.sbt treadle/build.sbt
+BUILD_SBTs=chisel-testers/build.sbt chiseltest/build.sbt chisel3/build.sbt diagrammer/build.sbt dsptools/build.sbt firrtl/build.sbt firrtl-interpreter/build.sbt treadle/build.sbt
 
 stamps:
 	$(MKDIR) -p $@
