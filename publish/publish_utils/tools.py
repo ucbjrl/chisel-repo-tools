@@ -432,13 +432,13 @@ class Tools:
         """run make install"""
 
         command_result = self.run_command(
-            f"make -j4 -f {self.default_makefile} install",
+            f"make -j1 -f {self.default_makefile} install",
             shell=True,
             capture_output=False)
 
         if command_result.returncode != 0:
             print(
-                f"make -j4 -f {self.default_makefile} install failed ({command_result.returncode}), see {self.log_name} for details")
+                f"make -j1 -f {self.default_makefile} install failed ({command_result.returncode}), see {self.log_name} for details")
             exit(1)
 
     @command_step
@@ -466,7 +466,7 @@ class Tools:
                 print(f"Errors ({len(error_lines)} found during {self.current_function_name}")
                 for line in error_lines:
                     print(line)
-                print(f"make -j4 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
+                print(f"make -j1 -f {self.default_makefile} clean install failed, see {self.log_name} for details")
 
             return has_errors
 
@@ -474,7 +474,7 @@ class Tools:
         is_external_program_present(f"yosys -V")
         is_external_program_present(f"z3 --version")
 
-        command = f"make -j4 -f {self.default_makefile} test"
+        command = f"make -j1 -f {self.default_makefile} test"
         command_result = self.run_command(
             command,
             shell=True,

@@ -8,6 +8,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
   cvc4 \
   gawk \
   gnupg2 \
+  iverilog \
   openjdk-11-jdk \
   python3 \
   python3-pip \
@@ -19,11 +20,13 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 WORKDIR /opt
 
 # Get oss-cad-suite for newer verilator
-RUN wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2021-12-18/oss-cad-suite-linux-x64-20211218.tgz
+RUN wget https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2022-02-07/oss-cad-suite-linux-x64-20220207.tgz
 
-RUN tar zxvf oss-cad-suite-linux-x64-20211218.tgz
+RUN tar zxvf oss-cad-suite-linux-x64-20220207.tgz
 
-ENV PATH="/opt/oss-cad-suite/bin:$PATH"
+# Put after the normal path because we want iverilog from package manager to win
+# For some reason, the iverilog from oss-cad-suite doesn't seem to work right
+ENV PATH="$PATH:/opt/oss-cad-suite/bin"
 
 # Add SBT repo
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list && \
