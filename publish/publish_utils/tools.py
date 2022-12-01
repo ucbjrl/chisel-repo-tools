@@ -147,10 +147,15 @@ class Tools:
             if not m:
                 raise ArgumentTypeError("Error: bad bump-type, release candidate must be of the form rc<candidate-number>")
             args = f"-r RC{m.group(1)} write"
+        elif sub_command.startswith("m"):
+            m = re.match(r'm(\d+)', sub_command)
+            if not m:
+                raise ArgumentTypeError("Error: bad bump-type, milestone must be of the form m<milestone-number>")
+            args = f"-r M{m.group(1)} write"
         else:
             raise ArgumentTypeError(
                 f"Error: bad bump-type '{sub_command}', it must be one of major, minor, rc<n>" +
-                 ", rc-clear, ds, ds<YYYYMMDD>, ds-clear")
+                 ", rc-clear, m<n>, ds, ds<YYYYMMDD>, ds-clear")
         return args
 
     @staticmethod
