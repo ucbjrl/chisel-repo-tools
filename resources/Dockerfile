@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:20.04
 
+RUN apt-get update
+
 # DEBIAN_FRONTEND=noninteractive suppresses interactive localization questions
 # See https://askubuntu.com/questions/909277
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
   curl \
   cvc4 \
   gawk \
