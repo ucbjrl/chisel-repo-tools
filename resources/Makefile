@@ -125,7 +125,7 @@ require_clean_work_tree:
 pull:	require_clean_work_tree
 	date > stamps/$@.begin
 	git pull
-	git submodule foreach 'xbranch=$$(git config -f $$toplevel/.gitmodules submodule.$$name.branch); git fetch origin $$xbranch && git checkout $$xbranch && git pull && git submodule update --init --recursive'
+	git submodule foreach 'xbranch=$$(git config -f $$toplevel/.gitmodules submodule.$$name.branch); git fetch origin $$xbranch && git checkout $$xbranch && git pull origin $$xbranch && git submodule update --init --recursive'
 	date > stamps/$@.end
 
 # Remove generated (Berkeley) artifacts (jars).
