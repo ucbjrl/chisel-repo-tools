@@ -36,17 +36,9 @@ The simplest case is the master branch of chisel-release.
 	path = chisel3
 	url = https://github.com/freechipsproject/chisel3.git
 	branch = master
-[submodule "chisel-testers"]
-	path = chisel-testers
-	url = https://github.com/freechipsproject/chisel-testers.git
-	branch = master
 [submodule "firrtl"]
 	path = firrtl
 	url = https://github.com/freechipsproject/firrtl.git
-	branch = master
-[submodule "firrtl-interpreter"]
-	path = firrtl-interpreter
-	url = https://github.com/freechipsproject/firrtl-interpreter.git
 	branch = master
 [submodule "dsptools"]
 	path = dsptools
