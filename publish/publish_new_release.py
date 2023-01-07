@@ -21,8 +21,8 @@ def make_parser():
             help='major number of release being bumped', required=True)
     parser.add_argument('-bt', '--bump-type', dest='bump_type', action='store',
             type=validate_bump_type, required=True,
-            help='Why type of release is this? '
-                 '[major, minor, rc<#>, rc-clear, ds, ds<YYYYMMDD>, ds-clear]')
+            help='What type of release is this? '
+                 '[major, minor, rc<#>, rc-clear, m<#>, ds, ds<YYYYMMDD>, ds-clear]')
     Tools.add_standard_cli_arguments(parser)
 
     return parser
