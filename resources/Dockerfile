@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:20.04
 
+RUN apt-get update
+
 # DEBIAN_FRONTEND=noninteractive suppresses interactive localization questions
 # See https://askubuntu.com/questions/909277
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
   curl \
   cvc4 \
   gawk \
@@ -27,6 +29,13 @@ RUN tar zxvf oss-cad-suite-linux-x64-20220207.tgz
 # Put after the normal path because we want iverilog from package manager to win
 # For some reason, the iverilog from oss-cad-suite doesn't seem to work right
 ENV PATH="$PATH:/opt/oss-cad-suite/bin"
+
+# Download CIRCT
+RUN mkdir -p circt
+
+RUN wget https://github.com/llvm/circt/releases/download/sifive%2F1%2F22%2F1/circt-bin-ubuntu-20.04.tar.gz -O - | tar -zx -C circt/
+
+ENV PATH="$PATH:/opt/circt/bin"
 
 # Add SBT repo
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list && \
