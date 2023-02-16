@@ -218,7 +218,7 @@ class WorkContext:
         self.findMinor = findMinor
         self.version = None
         self.moduleVersionMap = None
-        self.recurse = True
+        self.recurse = False
         self.dryRun = args.dryRun
         self.output = args.output
 
