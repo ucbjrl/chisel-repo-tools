@@ -30,10 +30,10 @@ RUN tar zxvf oss-cad-suite-linux-x64-20220207.tgz
 # For some reason, the iverilog from oss-cad-suite doesn't seem to work right
 ENV PATH="$PATH:/opt/oss-cad-suite/bin"
 
-# Download CIRCT
+# Download firtool
 RUN mkdir -p circt
 
-RUN wget https://github.com/llvm/circt/releases/download/sifive%2F1%2F22%2F1/circt-bin-ubuntu-20.04.tar.gz -O - | tar -zx -C circt/
+RUN wget https://github.com/llvm/circt/releases/download/firtool-1.31.0/circt-bin-ubuntu-20.04.tar.gz -O - | tar -zx -C circt/
 
 ENV PATH="$PATH:/opt/circt/bin"
 
