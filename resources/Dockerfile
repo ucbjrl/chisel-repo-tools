@@ -33,7 +33,7 @@ ENV PATH="$PATH:/opt/oss-cad-suite/bin"
 # Download firtool
 RUN mkdir -p circt
 
-RUN wget https://github.com/llvm/circt/releases/download/firtool-1.30.0/circt-bin-ubuntu-20.04.tar.gz -O - | tar -zx -C circt/
+RUN wget https://github.com/llvm/circt/releases/download/firtool-1.31.0/circt-bin-ubuntu-20.04.tar.gz -O - | tar -zx -C circt/
 
 ENV PATH="$PATH:/opt/circt/bin"
 
